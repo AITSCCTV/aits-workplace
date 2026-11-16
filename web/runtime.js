@@ -5,6 +5,7 @@
   const key=api?'aits-session:'+api.origin:'';
   let session=null;
   try{session=JSON.parse(sessionStorage.getItem(key)||'null');}catch{}
+  window.AITS_SESSION={signedIn:()=>!!session?.token};
   const failure=(message,status)=>Promise.resolve(new Response(JSON.stringify({error:message}),{status,headers:{'Content-Type':'application/json'}}));
   window.fetch=async(input,init)=>{
     const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href);
@@ -20,7 +21,7 @@
     return response;
   };
   document.addEventListener('DOMContentLoaded',()=>{
-    if(config.app==='floorplan-studio')return;
+
 
     const bar=document.createElement('aside');bar.className='workspace-account';bar.setAttribute('role','status');
     bar.style.cssText='padding:12px 20px;background:#fff4df;color:#4e3713;border-bottom:1px solid #e4c684;font:15px/1.6 system-ui,sans-serif;display:flex;gap:12px;flex-wrap:wrap;align-items:center';

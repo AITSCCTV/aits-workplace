@@ -19,3 +19,5 @@
 @media(max-width:750px){.aits-ui .content-studio main{padding:18px 12px!important}.aits-ui .content-studio .rail{padding:12px}.aits-ui .content-studio .rail-bottom{width:100%;margin:0}}
 
 .aits-ui .content-studio .primary{box-shadow:none;background:#687d51}.aits-ui .content-studio .search:focus{box-shadow:0 0 0 3px #849a6a20}.aits-ui[data-aits-app=floorplan-studio] .source-mode button.active{background:#edf2e5;border-color:#91a779;color:#556e3e}
+
+.aits-ui[data-aits-app=floorplan-studio] .shell[hidden]{display:none!important}.studio-login[hidden]{display:none!important}

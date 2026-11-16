@@ -1,4 +1,5 @@
-import {studioGateway} from './studio-gateway.mjs';
+import {studioIdentity} from './studio-access.mjs';
+import {studioGateway,floorplanGateway} from './studio-gateway.mjs';
 import {runWithContext} from './context.mjs';
 import {authenticate,authorize,HttpError} from './auth.mjs';
 import {syncCalendars} from './calendar-sync.mjs';
@@ -24,7 +25,7 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
  const url=new URL(request.url),origin=request.headers.get('Origin');
  const allowed=env.FRONTEND_ORIGIN==='https://aitscctv.github.io'?env.FRONTEND_ORIGIN:null;
  const cors=origin===allowed;
- const finish=response=>{const h=new Headers(response.headers);h.set('Cache-Control','no-store');h.set('X-Content-Type-Options','nosniff');h.set('Referrer-Policy','no-referrer');h.set('Vary','Origin');if(cors){h.set('Access-Control-Allow-Origin',allowed);h.set('Access-Control-Allow-Methods','GET, POST, PUT, OPTIONS');h.set('Access-Control-Allow-Headers','Authorization, Content-Type, X-AITS-Staff-Token');}return new Response(response.body,{status:response.status,headers:h});};
+ const finish=response=>{const h=new Headers(response.headers);h.set('Cache-Control','no-store');h.set('X-Content-Type-Options','nosniff');h.set('Referrer-Policy','no-referrer');h.set('Vary','Origin');if(cors){h.set('Access-Control-Allow-Origin',allowed);h.set('Access-Control-Allow-Methods','GET, POST, PUT, OPTIONS');h.set('Access-Control-Allow-Headers','Authorization, Content-Type');}return new Response(response.body,{status:response.status,headers:h});};
  try{
   if(origin&&origin!==allowed&&origin!==url.origin)throw new HttpError(403,'Origin not allowed.');
   if(request.method==='OPTIONS'){if(!cors)throw new HttpError(403,'Origin not allowed.');return finish(new Response(null,{status:204}));}
@@ -37,6 +38,14 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
    const data=JSON.stringify({type:'aits-login',state,token:user.token,email:user.email}).replaceAll('<','\\u003c');
    const html=`<!doctype html><meta charset="utf-8"><title>AITS sign-in</title><p>Sign-in completed. You can close this window.</p><script nonce="${nonce}">if(window.opener){window.opener.postMessage(${data},${JSON.stringify(allowed)});window.close();}</script>`;
    return finish(new Response(html,{headers:{'Content-Type':'text/html;charset=utf-8','Content-Security-Policy':`default-src 'none'; script-src 'nonce-${nonce}'; frame-ancestors 'none'; base-uri 'none'`}}));
+  }
+  const studioCheck=url.pathname.match(/^\/auth\/studio\/(content|floorplan)$/);
+  if(studioCheck){if(request.method!=='GET')throw new HttpError(405,'GET is required.');return finish(json(await studioIdentity(user,env,studioCheck[1])));}
+  if(url.pathname.startsWith('/floorplan-studio/')){await studioIdentity(user,env,'floorplan');return finish(await floorplanGateway(request,user));}
+  if(url.pathname.startsWith('/project-board/api/staff/')){
+   await studioIdentity(user,env,'content');
+   const body=await limitedBody(request,500_000);
+   return finish(await studioGateway(new Request(url.href,{method:request.method,headers:request.headers,body}),user));
   }
   const match=url.pathname.match(/^\/(project-board|inventory|design-studio)(\/.*)$/);
   if(!match)throw new HttpError(404,'Not found.');
@@ -55,7 +64,6 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
   const bindings={...env,DB:db,BUCKET:env.BUCKET};
   const response=await runWithContext({env:bindings,request:internal},async()=>{
    if(app==='design-studio')return plans(internal,bindings);
-   if(app==='project-board'&&path.startsWith('/api/staff/'))return studioGateway(new Request(url.href,{method:request.method,headers,body}));
    if(app==='project-board'&&path==='/api/calendar'){
     if(request.method!=='GET')throw new HttpError(405,'Read-only calendar.');
     const row=await db.prepare('SELECT data FROM calendar_snapshot WHERE id=1').first();
