@@ -37,6 +37,8 @@ if(args.path.endsWith(path.join('project-board','app','page.tsx')))contents=cont
  await writeFile(dir+'/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><link rel="stylesheet" href="${base}assets/${id}.css"></head><body><div id="app"></div><script type="module" src="${base}assets/${id}.js"></script></body></html>`,app));
 }
 await writeFile(out+'/.nojekyll','');
+await mkdir(out+'/privacy',{recursive:true});
+await cp('web/privacy.html',out+'/privacy/index.html');
 await writeFile(out+'/404.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>Page not found · AITS</title></head><body><h1>Page not found</h1><a href="${base}">Return to AITS Workplace</a></body></html>`,'workplace'));
 console.log('Built all four interfaces and seven React routes at '+base);
 
