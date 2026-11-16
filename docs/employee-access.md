@@ -43,7 +43,7 @@ applications and their policies must not be changed.
 
 No extra service, subscription, AI call or scheduled job is introduced. Membership
 reads use the existing D1 database and remain normal metered requests. Existing
-account-wide $5 Workers usage spending limit is unchanged; the per-request CPU ceiling is now 700 ms to allow strong password hashing; this feature does not impose a total Cloudflare bill
+account-wide $5 Workers usage spending limit is unchanged; the per-request CPU ceiling is now 1500 ms to allow strong password hashing; this feature does not impose a total Cloudflare bill
 cap or change upstream provider billing.
 
 Validation includes normalization, input validation, owner protection, revision
@@ -61,14 +61,14 @@ any tool. Administrators cannot retrieve existing passwords. The protected owner
 continues using Cloudflare sign-in; create a separate administrator account if a
 password-based administrator login is needed.
 
-Password hashing uses Node crypto PBKDF2-SHA256 with 600,000 iterations and a
+Password hashing uses Node crypto scrypt (N=32768, r=8, p=3, 32 MiB working memory) and a
 random 24-byte salt. Session tokens contain 256 random bits, expire after eight
 hours (15 minutes during forced change), and are stored hashed. Password changes,
 admin resets and logout revoke password sessions. Both login methods map each
 employee to the same stable workspace identity. Owner IDs remain unchanged.
 
 Before hashing, D1 atomically limits login attempts to 5/account/15 minutes,
-30/IP/15 minutes and 200 globally/hour. Resets and password changes have separate
+30/IP/15 minutes and 200 globally/hour across login, reset and change. Resets and password changes also have separate
 limits. Existing scheduled maintenance clears expired sessions and counters.
 The global limit may temporarily reject legitimate logins during abuse; it bounds
 hashing cost. It does not cap D1 costs or all account billing.

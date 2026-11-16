@@ -1,8 +1,8 @@
-import {pbkdf2Sync,timingSafeEqual,randomBytes,createHash} from 'node:crypto';
+import {scryptSync,timingSafeEqual,randomBytes,createHash} from 'node:crypto';
 import {HttpError} from './auth.mjs';
 import {ownerEmails} from './members.mjs';
 const digest=value=>createHash('sha256').update(value).digest('hex');
-const derive=(password,salt)=>pbkdf2Sync(password,salt,600000,32,'sha256').toString('hex');
+const derive=(password,salt)=>{try{return scryptSync(password,salt,32,{N:32768,r:8,p:3,maxmem:64*1024*1024}).toString('hex')}catch(e){throw new HttpError(503,'Password hashing unavailable: '+(e.code||e.name||'runtime_error'));}};
 const now=()=>Math.floor(Date.now()/1000);
 export function validatePassword(password){
  if(typeof password!=='string'||password.length<15||password.length>128||!password.trim()||/^(.)\1+$/.test(password)||['passwordpassword','123456789012345','abcdefghijklmnop'].includes(password.toLowerCase()))throw new HttpError(400,'Use a unique password of 15–128 characters.');
@@ -47,6 +47,7 @@ export async function passwordApi(request,env,user){
   const b=await body(request);validatePassword(b?.password);
   const old=await db.prepare('SELECT * FROM workspace_passwords WHERE email=?').bind(user.email).first();
   if(!old||typeof b.currentPassword!=='string'||b.currentPassword.length>128)throw new HttpError(400,'Enter your current password.');
+  await limit(db,'global',200,3600);
   await limit(db,'change:'+digest(user.email),5,900);
   if(!timingSafeEqual(Buffer.from(derive(b.currentPassword,old.salt),'hex'),Buffer.from(old.hash,'hex')))throw new HttpError(401,'Current password is incorrect.');
   if(b.currentPassword===b.password)throw new HttpError(400,'Choose a different password.');
@@ -61,6 +62,7 @@ export async function passwordApi(request,env,user){
   const member=await db.prepare('SELECT role,enabled FROM workspace_members WHERE email=?').bind(email).first();
   if(ownerEmails(env).includes(email)||email===user.email||(!user.owner&&member?.role==='admin'))throw new HttpError(403,'This administrator account is protected.');
   if(!member?.enabled)throw new HttpError(400,'Save and enable the employee account first.');
+  await limit(db,'global',200,3600);
   await limit(db,'reset:'+digest(user.email),20,3600);
   const password=randomBytes(18).toString('base64url'),salt=randomBytes(24).toString('hex'),hash=derive(password,salt),at=new Date().toISOString();
   const result=await db.batch([

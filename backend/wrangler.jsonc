@@ -9,7 +9,7 @@
   "workers_dev": true,
   "preview_urls": false,
   "limits": {
-    "cpu_ms": 700
+    "cpu_ms": 1500
   },
   "d1_databases": [
     {
