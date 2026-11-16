@@ -1165,5 +1165,21 @@
   "ขอบเขตข้อมูล": "Coverage",
   "ซิงก์ล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลครั้งก่อน": "Latest sync failed. Showing the last successful data.",
   "ข้อมูลอาจล้าสมัย โปรดตรวจสอบการเชื่อมต่อ": "Data may be stale. Check the connection.",
-  "ไม่มีรายการไม่ได้แปลว่าว่าง · วันนอกขอบเขตยังไม่มีข้อมูล": "No events does not mean available. Dates outside coverage have not been loaded."
+  "ไม่มีรายการไม่ได้แปลว่าว่าง · วันนอกขอบเขตยังไม่มีข้อมูล": "No events does not mean available. Dates outside coverage have not been loaded.",
+  "ข้อความ LINE": "LINE messages",
+  "อ่านข้อมูลไม่ได้": "Unable to read data",
+  "คลังข้อความ": "Message archive",
+  "อ่านจากคลัง": "Read from the archive",
+  "เดิมโดยตรง": "directly from the existing source",
+  "รีเฟรชทุก": "Refresh every",
+  "วินาทีเมื่อเปิดหน้านี้": "seconds while this page is open",
+  "ข้อความ": "Messages",
+  "รายการล่าสุดแสดงก่อน": "Newest first",
+  "เวลาในข้อความใช้รูปแบบจากคลังต้นทาง": "Message timestamps use the archive format",
+  "การรีเฟรชจะกลับไปแสดง": "Refresh returns to",
+  "ข้อความล่าสุด": "latest messages",
+  "อัปเดตอัตโนมัติทุก": "Automatically updates every",
+  "นาที": "minutes",
+  "ยังไม่ได้เปิดซิงก์อัตโนมัติ": "Automatic sync is not enabled",
+  "วันนอกขอบเขตยังไม่มีข้อมูล": "Dates outside coverage have not been loaded"
 }
