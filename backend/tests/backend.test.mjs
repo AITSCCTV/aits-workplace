@@ -112,3 +112,15 @@ test('Sites bridge is secret-authenticated and scoped only to board operations',
  await assert.rejects(authenticate(request('/project-board/api/tasks',e.SITES_BRIDGE_TOKEN,'https://aitscctv.github.io'),e),/Invalid/);
  e.SITES_BRIDGE_TOKEN='';await assert.rejects(authenticate(request('/project-board/api/tasks','a'.repeat(64)),e),/Invalid/);
 });
+
+test('Studio routes use server-verified identities and the bound service, preserving workspace role checks',async()=>{
+ const e=environment();e.DB_LINE_ARCHIVE=database([]);e.DB_LINE_ARCHIVE.sql.exec('CREATE TABLE staff(id TEXT,name TEXT,email TEXT,role TEXT)');
+ e.DB_LINE_ARCHIVE.sql.prepare('INSERT INTO staff VALUES(?,?,?,?)').run('staff-owner','Owner',admin.email,'admin');
+ let calls=0;e.CONTENT_STUDIO_SERVICE={fetch:async(url,init)=>{calls++;assert.equal(init.headers.get('X-AITS-Workspace-Token'),admin.token);assert.equal(init.headers.get('Authorization'),null);return Response.json({drafts:[]});}};
+ assert.equal((await worker.fetch(req('/project-board/api/staff/admin/content-studio/drafts'),e)).status,200);assert.equal(calls,1);
+ const check=await worker.fetch(req('/auth/studio/content'),e);assert.equal((await check.json()).user.id,'staff-owner');
+ e.DB_LINE_ARCHIVE.sql.prepare("UPDATE staff SET role='sales'").run();
+ const teamWorker=createWorker(async()=>({...admin,admin:false}));assert.equal((await teamWorker.fetch(req('/project-board/api/staff/admin/content-studio/drafts'),e)).status,403);assert.equal(calls,1);
+ assert.equal((await teamWorker.fetch(req('/auth/studio/floorplan'),e)).status,200);
+ const bridgeWorker=createWorker(async()=>({...admin,token:null}));assert.equal((await bridgeWorker.fetch(req('/auth/studio/content'),e)).status,403);
+});

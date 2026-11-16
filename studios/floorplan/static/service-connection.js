@@ -1,5 +1,5 @@
 (() => {
- window.aitsFetch=(path,options={})=>fetch(path,options);
+ window.aitsFetch=(path,options={})=>fetch(path==='/api/status'?'/api/connection':path,options);
  document.addEventListener('DOMContentLoaded',()=>{
   const shell=document.querySelector('.shell');
   const gate=document.createElement('section');gate.className='studio-login';gate.dataset.noTranslate='';

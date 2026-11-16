@@ -50,5 +50,11 @@
     "crons": [
       "*/15 * * * *"
     ]
-  }
+  },
+  "services": [
+    {
+      "binding": "CONTENT_STUDIO_SERVICE",
+      "service": "aits-api"
+    }
+  ]
 }

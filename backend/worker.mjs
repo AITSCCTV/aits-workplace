@@ -45,7 +45,8 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
   if(url.pathname.startsWith('/project-board/api/staff/')){
    await studioIdentity(user,env,'content');
    const body=await limitedBody(request,500_000);
-   return finish(await studioGateway(new Request(url.href,{method:request.method,headers:request.headers,body}),user));
+   if(!env.CONTENT_STUDIO_SERVICE)throw new HttpError(503,'Content Studio connection unavailable.');
+   return finish(await studioGateway(new Request(url.href,{method:request.method,headers:request.headers,body}),user,env.CONTENT_STUDIO_SERVICE.fetch.bind(env.CONTENT_STUDIO_SERVICE)));
   }
   const match=url.pathname.match(/^\/(project-board|inventory|design-studio)(\/.*)$/);
   if(!match)throw new HttpError(404,'Not found.');

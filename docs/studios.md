@@ -11,6 +11,9 @@ Workspace owners are admins. Existing matching staff IDs remain the audit identi
 otherwise an owner has a workspace-prefixed ID. Ambiguous staff identities fail
 closed. Employee emails are still not enabled; the roster remains deferred.
 
+The two Workers connect through Cloudflare service bindings (ordinary workers.dev
+fetches cannot connect Workers on this account). No new Worker is created.
+
 Each upstream independently checks the forwarded workspace session at a fixed,
 HTTPS workspace /auth/studio/content or /auth/studio/floorplan endpoint. Responses
 must explicitly authorize the matching tool and permitted role. Invalid sessions,
