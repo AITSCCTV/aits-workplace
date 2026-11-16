@@ -17,7 +17,7 @@ Additional routes: `/project-board/calendar/`, `/project-board/projects/`, `/pro
 
 ## Deployment status
 
-Backend deployed on 2026-11-16 at https://aits-workplace-api.aits-api.workers.dev with three isolated D1 databases and private R2 bucket. Owner-only Cloudflare Access login is configured for info@aitscctv.com; live browser verification is pending. The owner authorized existing paid-plan deployment and an account-wide $5 Workers usage limit, which is saved and enabled. D1/R2 and subscription fees are excluded, and enforcement delay can cause overshoot. No plan upgrades or payment actions are authorized. Private source records have not yet been migrated.
+Backend deployed on 2026-11-16 at https://aits-workplace-api.aits-api.workers.dev with three isolated D1 databases and private R2 bucket. Owner-only Cloudflare Access login is configured for info@aitscctv.com; live browser verification is pending. The owner authorized existing paid-plan deployment and an account-wide $5 Workers usage limit, which is saved and enabled. D1/R2 and subscription fees are excluded, and enforcement delay can cause overshoot. No plan upgrades or payment actions are authorized. The private calendar snapshot (15 events) has been imported into protected D1 storage. Other source records and uploaded plans have not yet been migrated.
 
 ## Preservation and current limitations
 
@@ -27,7 +27,7 @@ All original APIs, Worker entrypoints, schemas, migrations, tests, styles, asset
 
 **GitHub Pages serves static files only. It cannot execute the copied Workers, D1 queries, R2 operations, or MCP server.** The Pages build preserves the screens and client-side behavior. Workplace and the local Design Studio tools work without a backend. Cloud saves, inventory records, project data, form submissions and server exports require a separately deployed authenticated backend. The independent backend is connected through `config/runtime.json`; users must sign in.
 
-Private cloud data has not yet been migrated. Existing browser-saved plans remain on the old origin; export JSON from the original Design Studio and import on the new one.
+The private calendar snapshot is migrated; other private cloud data has not yet been migrated. Existing browser-saved plans remain on the old origin; export JSON from the original Design Studio and import on the new one.
 
 ## Build and verification
 
