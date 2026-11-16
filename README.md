@@ -1,55 +1,57 @@
-# AITS Workplace
+<p align="center">
+  <a href="https://aitscctv.com/"><img src="web/brand/aits-company-logo.png" alt="AitsCCTV company logo" width="160" /></a>
+</p>
 
-Source migration of all four AITS Sites into one repository, with a GitHub Pages build of their original interfaces.
+<h1 align="center">AitsCCTV</h1>
 
-Target URL: https://aitscctv.github.io/aits-workplace/
+<p align="center"><strong>All IT Solution</strong><br />Security, connectivity, and smarter spaces.<br />ออกแบบและติดตั้งระบบความปลอดภัยและเทคโนโลยีครบวงจร</p>
 
-## What is included
+<p align="center">
+  <a href="https://aitscctv.com/">Company website</a> ·
+  <a href="https://aitscctv.com/contact/">Contact our team</a> ·
+  <a href="https://aitscctv.github.io/aits-workplace/">Employee workspace</a>
+</p>
 
-| Original Site | Preserved source | GitHub Pages route |
-| --- | --- | --- |
-| AITS Workplace | `sites/workplace` — department hub, search, filters, artwork and company logo | `/` |
-| AITS Design Studio | `sites/design-studio` — floor plans, camera placement, Wi-Fi estimates, storage calculator, import/export, cloud versioning API | `/design-studio/` |
-| AITS Inventory | `sites/inventory` — equipment register, fractional quantities, receive/issue/return, minimum stock, history and export, database API | `/inventory/` |
-| AITS Project Board | `sites/project-board` — task board, quotations/order follow-up, warranties, calendar, project stages/progress/history, material movements/costs/requests, service/training, sales/survey forms, MCP server | `/project-board/` |
+---
 
-Additional routes: `/project-board/calendar/`, `/project-board/projects/`, `/project-board/service/`, `/project-board/forms/sales/`, `/project-board/forms/survey/`.
+## About AITS
 
-## Deployment status
+**A.I.T.S. Company Limited · บริษัท เอ.ไอ.ที.เอส จำกัด**
 
-Backend deployed on 2026-11-16 at https://aits-workplace-api.aits-api.workers.dev with three isolated D1 databases and private R2 bucket. Owner-only Cloudflare Access login is configured for info@aitscctv.com; authenticated calendar loading, inventory save/reload, and Design Studio cloud save/reopen have passed live browser verification; temporary test records were removed. The owner authorized existing paid-plan deployment and an account-wide $5 Workers usage limit, which is saved and enabled. D1/R2 and subscription fees are excluded, and enforcement delay can cause overshoot. No plan upgrades or payment actions are authorized. The private calendar snapshot (15 events) has been imported into protected D1 storage. The private data migration completed on 2026-11-16: 26 tasks, 40 task audit entries, three projects, 11 project revisions, and the earlier 15-event calendar snapshot. All imported database rows were read back and matched. Original inventory, warranty, service and cloud-plan tables were empty. No browser-saved plan was present in the checked AitsCCTV Brave profile; plans stored on other devices or as external files require those devices/files.
+AitsCCTV designs, supplies, installs, and maintains security and IT systems for homes, offices, commercial buildings, and industrial facilities. From selecting equipment to installation and after-sales support, our team helps customers plan solutions suited to their space and requirements.
 
-## Preservation and current limitations
+## Services & products
 
-The source was retrieved from the four actual Sites Git repositories. `migration-manifest.json` records the source commits and SHA-256 checksums for 293 tracked files. 292 files are byte-for-byte copies. The single exception is `sites/project-board/lib/calendar-snapshot.ts`: it contained private operational calendar records, so the public repository contains an empty template. Its original is retained in the local migration backup. No credentials, private database dumps, or uploaded plans are committed.
+| Solution | What we offer |
+| --- | --- |
+| **CCTV & surveillance** | Cameras, recording systems, installation, and CCTV rental services. |
+| **Networks & connectivity** | LAN and fibre-optic cabling, network design, and internet systems. |
+| **Access control & security** | Keycard, fingerprint and facial-recognition access, and vehicle barriers. |
+| **Smart homes** | Home automation, lighting, temperature, and door controls. |
+| **Business communications** | Telephone systems, cabling, and switchboards. |
+| **Solar energy** | Solar-cell system solutions. |
+| **Maintenance & support** | System servicing, after-sales assistance, and annual maintenance. |
 
-All original APIs, Worker entrypoints, schemas, migrations, tests, styles, assets, build scripts, and dependency lockfiles are retained. Git history itself remains in the local source checkouts; the manifest identifies the imported commits. The original Project Board now forwards its APIs and MCP connector to the independent workspace. Its old database is retained as a rollback snapshot; the other original Sites remain unchanged.
+**Consultation → Site assessment → Design & installation → Ongoing support**
 
-**GitHub Pages serves static files only. It cannot execute the copied Workers, D1 queries, R2 operations, or MCP server.** The Pages build preserves the screens and client-side behavior. Workplace and the local Design Studio tools work without a backend. Cloud saves, inventory records, project data, form submissions and server exports require a separately deployed authenticated backend. The independent backend is connected through `config/runtime.json`; users must sign in.
+Explore our services and company information on the [official AitsCCTV website](https://aitscctv.com/).
 
-The private data migration completed on 2026-11-16: 26 tasks, 40 task audit entries, three projects, 11 project revisions, and the earlier 15-event calendar snapshot. All imported database rows were read back and matched. Original inventory, warranty, service and cloud-plan tables were empty. No browser-saved plan was present in the checked AitsCCTV Brave profile; plans stored on other devices or as external files require those devices/files.
+## Talk to our team
 
-## Build and verification
+Planning an installation, upgrading an existing system, or looking for support? [Contact AITS](https://aitscctv.com/contact/) to discuss your requirements or request a quotation.
 
-Use Node.js 22 or later:
+| Contact | Details |
+| --- | --- |
+| **Email** | [info@aitscctv.com](mailto:info@aitscctv.com) |
+| **Telephone** | 02 878 2951 |
+| **Mobile** | 094 460 6196 |
+| **LINE** | [Chat with AitsCCTV](https://lin.ee/dcPb5mr) |
+| **Office** | 570 ถนนเจริญนคร แขวงบุคคโล เขตธนบุรี กรุงเทพฯ 10600 |
 
-```sh
-npm ci
-npm test
-npm run build
-node --test sites/design-studio/tests/cloud.test.mjs
-```
+## AITS Workspace
 
-The build uses the preserved source directly. Deployment-only path/link adjustments happen in the bundler, leaving the original files unchanged. Only `dist/` is uploaded to Pages, never server source or private snapshots. The root dependencies build the static interfaces; original server packages retain their own dependencies.
+Our internal platform for authorized AITS employees. For company services, sales enquiries, or customer support, please use the contact channels above.
 
-For preview at the production base path, serve the parent of a directory called `aits-workplace` containing the build, or set `PAGES_BASE_PATH=/` when building a root-hosted preview.
+---
 
-## Publish
-
-The included GitHub Actions workflow builds and deploys on every push to `main`. Pages has been enabled through the owner’s existing browser session with **Source: GitHub Actions**. The CLI collaborator has Write access, not administrator access.
-
-See [Cloud migration and required connections](docs/CONNECTIONS.md). No payment or subscription upgrade is authorized by this repository.
-
-## Languages
-
-Thai is the default. The Thai / English toolbar is available on all nine routes and remembers the selection in this browser. Interface text, help, dialogs, and date formatting support English. Customer names and free-text records retain their original language; stored enum values are unchanged. Translation runs locally with no translation API or additional service cost.
+<p align="center"><strong>Let AITS Set Standard.</strong><br /><a href="https://aitscctv.com/">AitsCCTV</a> · Bangkok, Thailand</p>
