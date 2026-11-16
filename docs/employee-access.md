@@ -1,7 +1,7 @@
 # Employee access
 
 The owner or a delegated administrator opens `/admin/` using the existing workspace login, adds an email and
-selects a role and tools. Employees use an existing Google account (once connected) or an admin-created workspace password; no OpenAI account, staff
+selects a role and tools. Employees use an existing Google account or an admin-created workspace password; no OpenAI account, staff
 dashboard account or Floorplan password is needed. Saving does not send mail.
 Disable an employee to block their next request, including requests using an
 already-issued JWT. Re-enable retains their selected tools. Role presets are Admin, Engineer, Sales, Marketing, Employee and Custom. Only the owner can assign or modify administrators; delegated admins manage ordinary employees and cannot reset administrator passwords. Email changes are
@@ -29,16 +29,17 @@ complete after a permission change; previously downloaded data cannot be recalle
 
 ## Login policy activation
 
-Cloudflare currently protects only `/auth/login` with `AITS owner only`.
-Workspace password accounts can authenticate independently. Employee Google/email-code login remains pending the Google identity-provider and Cloudflare policy configuration. The admin page displays this pending state unless
-EMPLOYEE_LOGIN_READY is `true`. Set that variable only after verifying the policy.
+Cloudflare protects only `/auth/login` with `AITS owner only` plus the Allow policy
+`AITS verified email - workspace membership required` (ID `b8398967-1850-480c-a64b-8db59db06a67`).
+Its Include Login Methods rule accepts Google and One-time PIN. Workspace password
+accounts authenticate independently. EMPLOYEE_LOGIN_READY and GOOGLE_LOGIN_READY
+are enabled after the live Google identity-provider test succeeded.
 
-Proposed final configuration: retain the owner rule and add an Allow rule for the
-One-time PIN login method on this same sign-in application. Do not use Bypass,
+Retain the owner rule and the sign-in-only scope. Do not use Bypass,
 change the audience, or broaden the protected hostname/path. This lets people
 verify email ownership; the Worker still refuses `/auth/login`, `/auth/me` and
 every private API unless that verified email is an enabled member or owner.
-The Cloudflare dashboard change is awaiting action-time confirmation. Other
+The Cloudflare dashboard change was approved and applied. Other
 applications and their policies must not be changed.
 
 No extra service, subscription, AI call or scheduled job is introduced. Membership
@@ -74,9 +75,13 @@ The global limit may temporarily reject legitimate logins during abuse; it bound
 hashing cost. It does not cap D1 costs or all account billing.
 
 Google connection uses a separate OAuth Web Application client in project
-`gmail-api-507406`, with JavaScript origin
+`aits-workspace-sign-in` (External, In production), with JavaScript origin
 `https://solitary-night-1767.cloudflareaccess.com` and redirect
 `https://solitary-night-1767.cloudflareaccess.com/cdn-cgi/access/callback`.
-Configure it as the Google identity provider, then include that login method in
-the sign-in-only Access policy. Set GOOGLE_LOGIN_READY=true only after testing.
+The Google identity provider ID is `823dc235-6c6c-4afc-9c43-13323b18de07`.
+The client secret stays in Cloudflare's identity-provider configuration, never in this repository.
+The live Google test confirmed the owner identity and requested only email, profile and openid scopes.
+The bilingual public sign-in privacy notice is at `/privacy/`.
+An earlier unused client named AITS Workspace Sign-in remains in `gmail-api-507406`;
+it is not connected to Cloudflare. The existing Calendar client and project audience were not changed.
 This does not use the Calendar service-account credential or request Gmail access.

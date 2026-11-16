@@ -45,7 +45,9 @@
     "POLICY_AUD": "72f67e633ac9c1aaeaee8df92899bbf54bce807651065a9f0b629d6454417e80",
     "ADMIN_EMAILS": "info@aitscctv.com",
     "TEAM_EMAILS": "",
-    "PASSWORD_LOGIN_ENABLED": "true"
+    "PASSWORD_LOGIN_ENABLED": "true",
+    "GOOGLE_LOGIN_READY": "true",
+    "EMPLOYEE_LOGIN_READY": "true"
   },
   "triggers": {
     "crons": [
