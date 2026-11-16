@@ -80,3 +80,4 @@ await cp('web/brand',out+'/brand',{recursive:true});
 await cp('web/brand.css',out+'/brand.css');
 async function finishToolStyles(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory())await finishToolStyles(file);else if(entry.name.endsWith('.html')){const html=await readFile(file,'utf8');await writeFile(file,html.replace('</head>','<link rel="stylesheet" href="'+base+'tools.css?v='+assetVersion+'"><link rel="stylesheet" href="'+base+'brand.css?v='+assetVersion+'"><link rel="icon" type="image/png" href="'+base+'brand/aits-company-logo.png"></head>'));}}}
 await finishToolStyles(out);
+await build({entryPoints:['web/assistant-export.ts'],outfile:out+'/assets/assistant-export.js',bundle:true,minify:true,format:'esm',platform:'browser',target:'es2022'});

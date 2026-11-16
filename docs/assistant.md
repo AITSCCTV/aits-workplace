@@ -1,0 +1,15 @@
+# Overview assistant
+
+Home includes an OpenAI `gpt-5.4-mini` assistant (low reasoning, Responses API, `store:false`). The API key is a Cloudflare secret and never included in Pages. Company context is selected by permission-filtered, parameterized searches. LINE is strictly read-only to the assistant; it has no messaging tool or access to channel credentials.
+
+The Admin tool catalogue has separate grants for AI assistant, customer records, prices, quotations and calendar event creation. Existing employees receive no automatic new grants. Each source still requires its corresponding tool grant. Answers/history/proposals are private to their author and current permission set. Last three answers provide conversation context; company facts must be searched again. Sources are bounded and freshness is disclosed. AI summaries require human verification.
+
+Changes are persisted proposals until the user clicks Confirm. Tasks and project notes use revisions and audit records. Quotes are workspace drafts using production FlowAccount catalogue prices; they do not issue/send a FlowAccount document. Taxes, installation, discounts and commercial terms require review. Calendar creation is restricted to info@aitscctv.com, private visibility, no attendees/invitations, a live overlap check and a stable event ID for safe retries. All-day end dates are exclusive. Existing calendar events are not modified.
+
+Reports download real DOCX, PDF and XLSX files in the browser; PDF embeds licensed Sarabun for Thai. Export code loads separately from the dashboard. Data is not sent to a document-conversion service.
+
+`ASSISTANT_MONTHLY_USD=5` is a shared application safeguard separate from the Cloudflare budget. Every model round atomically reserves a conservative input/output estimate before sending, then reconciles token usage at $0.75/M input and $4.50/M output (cached discounts are conservatively ignored). Ambiguous failures retain reservations. This does not cap other use of the same OpenAI project/key, taxes, or future provider pricing changes. Review model pricing when changing the model. Up to four rounds per request and four requests per employee/minute; input and output are bounded.
+
+Deploy: apply backend/migrations/assistant.sql to the project-board D1 database, set OPENAI_API_KEY with Wrangler secret put, build/deploy the API and publish Pages. `ASSISTANT_CALENDAR_WRITE_ENABLED` must be true only after granting the service account event editing access. No additional cloud service is provisioned.
+
+Validation: backend/tests/assistant.test.mjs exercises permission isolation, no LINE writes, quota reservation, genuine catalogue pricing, approval idempotency/audit, history isolation, provider request limits, calendar conflicts/privacy and duplicate prevention. Existing migration and backend suites remain required.

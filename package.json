@@ -8,10 +8,13 @@
     "test": "node --test tests/migration.test.mjs tests/i18n.test.mjs",
     "preview": "python -m http.server 4173 --directory dist",
     "build:backend": "node scripts/build-backend.mjs",
-    "test:backend": "npm run build:backend && node --test backend/tests/backend.test.mjs backend/tests/studio.test.mjs backend/tests/line-chat.test.mjs"
+    "test:backend": "npm run build:backend && node --test backend/tests/backend.test.mjs backend/tests/studio.test.mjs backend/tests/line-chat.test.mjs backend/tests/assistant.test.mjs"
   },
   "dependencies": {
+    "docx": "^9.15.4",
+    "exceljs": "^4.4.0",
     "jose": "^6.2.17",
+    "pdfmake": "^0.2.20",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },

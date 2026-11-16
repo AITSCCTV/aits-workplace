@@ -37,7 +37,7 @@ export async function authenticate(request,env,keys){
 }
 export function authorize(user,app,path,method){
  if(user.admin)return;
- const required=app==='inventory'?(path==='/api/stock'?'inventory':null):app==='design-studio'?(/^\/api\/plans(?:\/[^/]+)?$/.test(path)?'design-studio':null):{'/api/tasks':'tasks','/api/projects':'projects','/api/calendar':'calendar','/api/line':'line','/api/line/chat':'line','/api/review':'review','/api/warranties':'service','/api/service':'service','/api/forms':'forms'}[path];
+ const required=app==='inventory'?(path==='/api/stock'?'inventory':null):app==='design-studio'?(/^\/api\/plans(?:\/[^/]+)?$/.test(path)?'design-studio':null):{'/api/assistant':'assistant','/api/tasks':'tasks','/api/projects':'projects','/api/calendar':'calendar','/api/line':'line','/api/line/chat':'line','/api/review':'review','/api/warranties':'service','/api/service':'service','/api/forms':'forms'}[path];
  if(required&&hasTool(user,required)&&(required!=='forms'||method==='POST'))return;
  if(app==='project-board'&&path==='/api/sync-status'&&method==='GET'&&(hasTool(user,'calendar')||hasTool(user,'line')))return;
  throw new HttpError(403,'This tool is not enabled for your account.');

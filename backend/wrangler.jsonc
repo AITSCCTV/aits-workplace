@@ -49,7 +49,9 @@
     "GOOGLE_LOGIN_READY": "true",
     "EMPLOYEE_LOGIN_READY": "true",
     "LINE_WORKSPACE_SEND_ENABLED": "true",
-    "LINE_INCLUDED_MONTHLY_LIMIT": "15000"
+    "LINE_INCLUDED_MONTHLY_LIMIT": "15000",
+    "ASSISTANT_MONTHLY_USD": "5",
+    "ASSISTANT_CALENDAR_WRITE_ENABLED": "true"
   },
   "triggers": {
     "crons": [

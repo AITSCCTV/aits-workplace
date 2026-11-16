@@ -10,10 +10,10 @@ export const calendars=[
  ['วันหยุด','c_34d16566742a953f66488e1ea18eab7ca7f673096b20f5f04bacfd934933244b@group.calendar.google.com','#d06b64'],
  ['P_Soup_Sale','c_bed6eeb2301b5ad2f18bba6dead66085f9bfc2fc6aeb9337f23f0f2284ba88e8@group.calendar.google.com','#cd74e6'],
 ];
-export async function googleToken(secret,fetcher=fetch){
+export async function googleToken(secret,fetcher=fetch,scope='https://www.googleapis.com/auth/calendar.events.readonly'){
  const key=JSON.parse(secret);
  if(key.type!=='service_account'||key.client_email!=='aits-workspace-sync@gmail-api-507406.iam.gserviceaccount.com')throw Error('credential_mismatch');
- const assertion=await new SignJWT({scope:'https://www.googleapis.com/auth/calendar.events.readonly'})
+ const assertion=await new SignJWT({scope})
   .setProtectedHeader({alg:'RS256',kid:key.private_key_id}).setIssuer(key.client_email)
   .setAudience('https://oauth2.googleapis.com/token').setIssuedAt().setExpirationTime('5m')
   .sign(await importPKCS8(key.private_key,'RS256'));
