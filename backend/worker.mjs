@@ -61,6 +61,10 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
     return json({...JSON.parse(row.data),sync});
    }
    if(app==='project-board'&&path==='/api/line')return readArchive(internal,env);
+   if(app==='project-board'&&path==='/api/sync-calendar'){
+    if(request.method!=='POST')throw new HttpError(405,'POST is required.');
+    const result=await syncCalendars(env);return json(result,result.status==='error'?503:200);
+   }
    if(app==='project-board'&&path==='/api/sync-status'){
     if(request.method!=='GET')throw new HttpError(405,'Read-only status.');
     return json({calendar:await db.prepare("SELECT status,attempted_at,success_at,error_code FROM sync_status WHERE id='calendar'").first(),line:env.DB_LINE_ARCHIVE?'live_archive':'not_configured'});

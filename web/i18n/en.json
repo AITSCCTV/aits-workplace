@@ -1181,5 +1181,7 @@
   "อัปเดตอัตโนมัติทุก": "Automatically updates every",
   "นาที": "minutes",
   "ยังไม่ได้เปิดซิงก์อัตโนมัติ": "Automatic sync is not enabled",
-  "วันนอกขอบเขตยังไม่มีข้อมูล": "Dates outside coverage have not been loaded"
+  "วันนอกขอบเขตยังไม่มีข้อมูล": "Dates outside coverage have not been loaded",
+  "ตรวจซิงก์ปฏิทิน · จำกัดทุก 15 นาที": "Check calendar sync · Limited to every 15 minutes",
+  "ซิงก์ไม่สำเร็จ โปรดลองในรอบถัดไป": "Sync failed. Please try in the next interval."
 }
