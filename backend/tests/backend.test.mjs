@@ -10,10 +10,42 @@ import {readArchive} from '../line-archive.mjs';
 import {scanLine,suggestMessage,approveReview,reviewApi} from '../line-review.mjs';
 const origin='https://aitscctv.github.io';
 function database(files){const sql=new DatabaseSync(':memory:');for(const file of files)sql.exec(readFileSync(file,'utf8'));const wrap=(query,args=[])=>({bind(...values){return wrap(query,values)},async first(){return sql.prepare(query).get(...args)||null},async all(){return {results:sql.prepare(query).all(...args)}},async run(){return {meta:{changes:sql.prepare(query).run(...args).changes}}}});return {sql,prepare:query=>wrap(query),async batch(queries){sql.exec('BEGIN');try{const result=[];for(const q of queries)result.push(await q.run());sql.exec('COMMIT');return result}catch(e){sql.exec('ROLLBACK');throw e}}};}
-function environment(){const objects=new Map();return {FRONTEND_ORIGIN:origin,ADMIN_EMAILS:'info@aitscctv.com',TEAM_EMAILS:'team@example.com',TEAM_DOMAIN:'https://aits-test.cloudflareaccess.com',POLICY_AUD:'test-audience',DB_PROJECT_BOARD:database(['sites/project-board/drizzle/0000_flowery_the_professor.sql','sites/project-board/drizzle/0001_mute_silver_sable.sql','backend/migrations/calendar.sql','backend/migrations/sync.sql','backend/migrations/review.sql']),DB_INVENTORY:database(['sites/inventory/drizzle/0000_overrated_corsair.sql']),DB_DESIGN_STUDIO:database(['sites/design-studio/drizzle/0000_smiling_hobgoblin.sql']),BUCKET:{put:async(k,v)=>objects.set(k,v),get:async k=>objects.has(k)?{text:async()=>objects.get(k)}:null,delete:async k=>objects.delete(k)}};}
+function environment(){const objects=new Map();return {FRONTEND_ORIGIN:origin,ADMIN_EMAILS:'info@aitscctv.com',TEAM_EMAILS:'team@example.com',TEAM_DOMAIN:'https://aits-test.cloudflareaccess.com',POLICY_AUD:'test-audience',DB_PROJECT_BOARD:database(['sites/project-board/drizzle/0000_flowery_the_professor.sql','sites/project-board/drizzle/0001_mute_silver_sable.sql','backend/migrations/calendar.sql','backend/migrations/sync.sql','backend/migrations/review.sql','backend/migrations/members.sql']),DB_INVENTORY:database(['sites/inventory/drizzle/0000_overrated_corsair.sql']),DB_DESIGN_STUDIO:database(['sites/design-studio/drizzle/0000_smiling_hobgoblin.sql']),BUCKET:{put:async(k,v)=>objects.set(k,v),get:async k=>objects.has(k)?{text:async()=>objects.get(k)}:null,delete:async k=>objects.delete(k)}};}
 const req=(path,method='GET',body,extra={})=>new Request('https://api.example'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...extra},body:body===undefined?undefined:JSON.stringify(body)});
 const admin={id:'verified-owner',email:'info@aitscctv.com',admin:true,token:'signed-token'};
 const worker=createWorker(async()=>admin);
+
+test('owner manages access with validation, protected owner, revision conflicts and transactional audit',async()=>{
+ const e=environment(),path='/project-board/api/members',input={email:' Employee@Example.com ',tools:['calendar'],enabled:true,revision:0};
+ assert.equal((await worker.fetch(req(path,'POST',input),e)).status,200);
+ const listed=await(await worker.fetch(req(path),e)).json();assert.equal(listed.members[0].email,'employee@example.com');assert.equal(listed.members[0].revision,1);
+ assert.equal((await worker.fetch(req(path,'POST',input),e)).status,409);
+ for(const changed of [{email:admin.email},{tools:['admin']},{tools:['review']},{enabled:'true'},{revision:-1}])assert.ok([400,403].includes((await worker.fetch(req(path,'POST',{...input,...changed}),e)).status));
+ assert.equal((await worker.fetch(req(path,'POST',{...input,email:'employee@example.com',revision:1,enabled:false}),e)).status,200);
+ assert.equal(e.DB_PROJECT_BOARD.sql.prepare('SELECT count(*) n FROM workspace_member_audit').get().n,2);
+ for(const identity of [{...admin,admin:false,tools:['content-studio']},{...admin,token:null}])assert.equal((await createWorker(async()=>identity).fetch(req(path),e)).status,403);
+});
+
+test('employee JWT membership is rechecked on every request; existing session is denied after disabling',async()=>{
+ const e=environment(),{privateKey,publicKey}=await generateKeyPair('RS256');
+ const token=await new SignJWT({email:'employee@example.com'}).setProtectedHeader({alg:'RS256'}).setSubject('employee').setIssuedAt().setExpirationTime('1h').setIssuer(e.TEAM_DOMAIN).setAudience(e.POLICY_AUD).sign(privateKey);
+ const request=req('/auth/me','GET',undefined,{Authorization:'Bearer '+token});
+ await assert.rejects(authenticate(request,e,publicKey),err=>err.status===403);
+ await worker.fetch(req('/project-board/api/members','POST',{email:'employee@example.com',tools:['calendar'],enabled:true,revision:0}),e);
+ assert.deepEqual((await authenticate(request,e,publicKey)).tools,['calendar']);
+ const w=createWorker((r,env)=>authenticate(r,env,publicKey));
+ assert.equal((await w.fetch(req('/project-board/api/tasks','GET',undefined,{Authorization:'Bearer '+token}),e)).status,403);
+ await worker.fetch(req('/project-board/api/members','POST',{email:'employee@example.com',tools:['calendar'],enabled:false,revision:1}),e);
+ await assert.rejects(authenticate(request,e,publicKey),err=>err.status===403);
+});
+
+test('per-tool grants do not confer other tools, admin, sync writes or MCP',async()=>{
+ const e=environment();
+ const employee=createWorker(async()=>({...admin,admin:false,tools:['tasks']}));
+ assert.equal((await employee.fetch(req('/project-board/api/tasks'),e)).status,200);
+ for(const path of ['/project-board/api/projects','/project-board/api/calendar','/project-board/api/review','/project-board/api/members','/project-board/api/sync-calendar','/project-board/mcp','/inventory/api/stock','/design-studio/api/plans','/auth/studio/content','/auth/studio/floorplan'])assert.equal((await employee.fetch(req(path),e)).status,403,path);
+ const profile=await(await employee.fetch(req('/auth/me'),e)).json();assert.deepEqual(profile.tools,['tasks']);assert.equal(profile.admin,false);assert.equal(profile.token,undefined);
+});
 
 function archive(){const db=database([]);db.sql.exec('CREATE TABLE customers(id TEXT PRIMARY KEY,name TEXT,real_name TEXT);CREATE TABLE conversations(id TEXT PRIMARY KEY,customer_id TEXT,message TEXT,message_type TEXT,sender TEXT,timestamp TEXT);');db.sql.prepare('INSERT INTO customers VALUES(?,?,?)').run('customer','Test Customer','');return db;}
 const message=(id='message')=>({id,customer_id:'customer',customer_name:'Test Customer',message:'Please schedule the installation visit next week.',message_type:'text',sender:'user',timestamp:'2026-11-16T00:00:00Z'});
@@ -98,7 +130,7 @@ test('inventory persists exact quantities and isolates owners, ignoring forged i
  r=await worker.fetch(req('/inventory/api/stock','POST',{action:'add',sku:'SECOND',name:'Test',unit:'ชิ้น',decimals:0,min:null,revision:-1}),e);assert.equal(r.status,409);
 });
 test('board tasks persist and stale revisions do not overwrite',async()=>{const e=environment();const r=await worker.fetch(req('/project-board/api/tasks','POST',{title:'Migration test',status:'todo'}),e);assert.equal(r.status,200);const {task}=await r.json();assert.equal((await (await worker.fetch(req('/project-board/api/tasks'),e)).json()).tasks.length,1);assert.equal((await worker.fetch(req('/project-board/api/tasks','POST',{...task,revision:0,title:'Wrong update'}),e)).status,400);assert.equal((await (await worker.fetch(req('/project-board/api/tasks'),e)).json()).tasks[0].title,'Migration test')});
-test('team role cannot read board, inventory, plans or MCP',async()=>{const w=createWorker(async()=>({...admin,admin:false,email:'team@example.com'})),e=environment();for(const path of ['/project-board/api/tasks','/inventory/api/stock','/design-studio/api/plans','/project-board/mcp'])assert.equal((await w.fetch(req(path),e)).status,403)});
+test('team role cannot read board, inventory, plans or MCP',async()=>{const w=createWorker(async()=>({...admin,admin:false,email:'team@example.com',tools:['forms']})),e=environment();for(const path of ['/project-board/api/tasks','/inventory/api/stock','/design-studio/api/plans','/project-board/mcp'])assert.equal((await w.fetch(req(path),e)).status,403)});
 test('Design Studio retains R2 saves and revision-conflict behavior through gateway',async()=>{const e=environment(),id=crypto.randomUUID(),plan={version:1,name:'Test plan',scale:25,bg:null,walls:[],devices:[]};assert.equal((await worker.fetch(req('/design-studio/api/plans','POST',{id,plan}),e)).status,201);const saved=await(await worker.fetch(req('/design-studio/api/plans/'+id),e)).json();assert.equal(saved.plan.name,plan.name);assert.equal((await worker.fetch(req('/design-studio/api/plans/'+id,'PUT',{plan,revision:2}),e)).status,409)});
 test('missing private snapshot reports unavailable rather than an empty calendar',async()=>{assert.equal((await worker.fetch(req('/project-board/api/calendar'),environment())).status,503)});
 test('login bridge requires nonce and never puts tokens in URL; restrictive CSP',async()=>{const e=environment();assert.equal((await worker.fetch(req('/auth/login'),e)).status,400);const r=await worker.fetch(req('/auth/login?state='+crypto.randomUUID()),e);assert.equal(r.status,200);assert.match(r.headers.get('content-security-policy'),/frame-ancestors 'none'/);assert.equal(r.headers.get('cache-control'),'no-store');assert.match(await r.text(),/postMessage/)});
@@ -121,6 +153,6 @@ test('Studio routes use server-verified identities and the bound service, preser
  const check=await worker.fetch(req('/auth/studio/content'),e);assert.equal((await check.json()).user.id,'staff-owner');
  e.DB_LINE_ARCHIVE.sql.prepare("UPDATE staff SET role='sales'").run();
  const teamWorker=createWorker(async()=>({...admin,admin:false}));assert.equal((await teamWorker.fetch(req('/project-board/api/staff/admin/content-studio/drafts'),e)).status,403);assert.equal(calls,1);
- assert.equal((await teamWorker.fetch(req('/auth/studio/floorplan'),e)).status,200);
+ assert.equal((await teamWorker.fetch(req('/auth/studio/floorplan'),e)).status,403);
  const bridgeWorker=createWorker(async()=>({...admin,token:null}));assert.equal((await bridgeWorker.fetch(req('/auth/studio/content'),e)).status,403);
 });

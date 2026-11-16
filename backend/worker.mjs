@@ -1,3 +1,4 @@
+import {membersApi,sessionInfo} from './members.mjs';
 import {studioIdentity} from './studio-access.mjs';
 import {studioGateway,floorplanGateway} from './studio-gateway.mjs';
 import {runWithContext} from './context.mjs';
@@ -39,6 +40,8 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
    const html=`<!doctype html><meta charset="utf-8"><title>AITS sign-in</title><p>Sign-in completed. You can close this window.</p><script nonce="${nonce}">if(window.opener){window.opener.postMessage(${data},${JSON.stringify(allowed)});window.close();}</script>`;
    return finish(new Response(html,{headers:{'Content-Type':'text/html;charset=utf-8','Content-Security-Policy':`default-src 'none'; script-src 'nonce-${nonce}'; frame-ancestors 'none'; base-uri 'none'`}}));
   }
+  if(url.pathname==='/auth/me'&&request.method==='GET'){if(!user.token)throw new HttpError(403,'Workspace sign-in is required.');return finish(json(sessionInfo(user)));}
+  if(url.pathname==='/project-board/api/members'){const body=await limitedBody(request,16_000);return finish(await membersApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
   const studioCheck=url.pathname.match(/^\/auth\/studio\/(content|floorplan)$/);
   if(studioCheck){if(request.method!=='GET')throw new HttpError(405,'GET is required.');return finish(json(await studioIdentity(user,env,studioCheck[1])));}
   if(url.pathname.startsWith('/floorplan-studio/')){await studioIdentity(user,env,'floorplan');return finish(await floorplanGateway(request,user));}

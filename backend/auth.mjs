@@ -1,3 +1,4 @@
+import {hasTool} from './members.mjs';
 import {createRemoteJWKSet,jwtVerify} from 'jose';
 const keysets=new Map();
 export class HttpError extends Error {constructor(status,message){super(message);this.status=status;}}
@@ -25,11 +26,15 @@ export async function authenticate(request,env,keys){
  const email=payload.email.toLowerCase();
  const admins=(env.ADMIN_EMAILS||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
  const team=(env.TEAM_EMAILS||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
- if(!admins.includes(email)&&!team.includes(email))throw new HttpError(403,'This account is not authorized for AITS.');
- return {id:payload.sub,email,admin:admins.includes(email),token};
+ const admin=admins.includes(email);
+ const member=admin?null:await env.DB_PROJECT_BOARD.prepare('SELECT tools,enabled FROM workspace_members WHERE email=?').bind(email).first();
+ if(!admin&&!(member?member.enabled:team.includes(email)))throw new HttpError(403,'This account is not authorized for AITS.');
+ return {id:payload.sub,email,admin,token,tools:admin?[]:member?JSON.parse(member.tools):['forms']};
 }
 export function authorize(user,app,path,method){
  if(user.admin)return;
- if(app==='project-board'&&path==='/api/forms'&&method==='POST')return;
- throw new HttpError(403,'This account may submit team forms only.');
+ const required=app==='inventory'?(path==='/api/stock'?'inventory':null):app==='design-studio'?(/^\/api\/plans(?:\/[^/]+)?$/.test(path)?'design-studio':null):{'/api/tasks':'tasks','/api/projects':'projects','/api/calendar':'calendar','/api/line':'line','/api/review':'review','/api/warranties':'service','/api/service':'service','/api/forms':'forms'}[path];
+ if(required&&hasTool(user,required)&&(required!=='forms'||method==='POST'))return;
+ if(app==='project-board'&&path==='/api/sync-status'&&method==='GET'&&(hasTool(user,'calendar')||hasTool(user,'line')))return;
+ throw new HttpError(403,'This tool is not enabled for your account.');
 }

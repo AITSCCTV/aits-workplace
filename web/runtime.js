@@ -5,7 +5,16 @@
   const key=api?'aits-session:'+api.origin:'';
   let session=null;
   try{session=JSON.parse(sessionStorage.getItem(key)||'null');}catch{}
-  window.AITS_SESSION={signedIn:()=>!!session?.token};
+  let identity=null;
+  const account={signedIn:()=>!!session?.token,info:()=>identity,can:tool=>!!identity&&(identity.admin||identity.tools.includes(tool))};
+  window.AITS_SESSION=account;
+  account.ready=(async()=>{
+    if(!session?.token||!api)return null;
+    try{const r=await originalFetch(new URL('/auth/me',api),{headers:{Authorization:'Bearer '+session.token},credentials:'omit',redirect:'error'});
+      if(r.ok)identity=await r.json();else if(r.status===401||r.status===403){session=null;sessionStorage.removeItem(key);}
+    }catch{}
+    window.dispatchEvent(new Event('aits-session-ready'));return identity;
+  })();
   const failure=(message,status)=>Promise.resolve(new Response(JSON.stringify({error:message}),{status,headers:{'Content-Type':'application/json'}}));
   window.fetch=async(input,init)=>{
     const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href);
@@ -43,7 +52,7 @@
       window.addEventListener('message',receive);
       const timeout=setTimeout(()=>{window.removeEventListener('message',receive);status.textContent='Sign-in timed out. Please try again.';},300000);
     };
-    window.addEventListener('aits-auth-expired',refresh);bar.append(login,logout);
+    window.addEventListener('aits-auth-expired',refresh);window.addEventListener('aits-session-ready',refresh);bar.append(login,logout);
     const link=document.createElement('a');link.href=config.original;link.textContent='Open original Site';link.rel='noopener';link.target='_blank';bar.append(link);if(config.app==='project-board'){const archive=document.createElement('a');archive.href=config.base+'project-board/line/';archive.textContent='LINE · คลังข้อความ';bar.append(archive);}refresh();document.body.prepend(bar);
   });
 })();

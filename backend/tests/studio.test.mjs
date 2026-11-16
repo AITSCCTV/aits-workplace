@@ -5,13 +5,13 @@ import {studioIdentity} from '../studio-access.mjs';
 const user={id:'owner',email:'info@aitscctv.com',admin:true,token:'verified-workspace-token'};
 const req=(path,method='GET',headers={})=>new Request('https://workspace.test'+path,{method,headers});
 const env=(rows=[])=>({DB_LINE_ARCHIVE:{prepare:()=>({bind:()=>({all:async()=>({results:rows})})})}});
-test('central Studio permissions preserve staff IDs, require current roles and reject service bridge identities',async()=>{
+test('central Studio permissions preserve staff IDs, require explicit tool grants and reject service bridge identities',async()=>{
  const staff={id:'staff-1',email:'info@aitscctv.com',name:'Owner',role:'admin'};
  assert.equal((await studioIdentity(user,env([staff]),'content')).user.id,'staff-1');
  const team={...user,admin:false};
  await assert.rejects(()=>studioIdentity(team,env([]),'content'),e=>e.status===403);
  await assert.rejects(()=>studioIdentity(team,env([{...staff,role:'sales'}]),'content'),e=>e.status===403);
- assert.equal((await studioIdentity(team,env([{...staff,role:'sales'}]),'floorplan')).user.role,'sales');
+ assert.equal((await studioIdentity({...team,tools:['floorplan-studio']},env([{...staff,role:'sales'}]),'floorplan')).user.role,'network_engineer');
  await assert.rejects(()=>studioIdentity({...user,token:null},env(),'content'),e=>e.status===403);
  await assert.rejects(()=>studioIdentity(team,env([staff,staff]),'content'),e=>e.status===403);
 });
@@ -27,3 +27,11 @@ test('Floorplan gateway fixes destination, strips passwords and rejects unknown 
  await assert.rejects(()=>floorplanGateway(req('/floorplan-studio/api/delete','POST'),user),e=>e.status===404);
  await assert.rejects(()=>floorplanGateway(req('/floorplan-studio/api/preview','POST',{'Content-Length':'55000000'}),user),e=>e.status===413);
 });
+
+ test('new employees can use assigned Studios without a separate staff login and lose access on removal',async()=>{
+ const member={...user,admin:false,email:'new@example.com',tools:['content-studio']};
+ assert.equal((await studioIdentity(member,env(),'content')).user.role,'marketing');
+ await assert.rejects(()=>studioIdentity(member,env(),'floorplan'),e=>e.status===403);
+ assert.equal((await studioIdentity({...member,tools:['floorplan-studio']},env(),'floorplan')).user.role,'network_engineer');
+ await assert.rejects(()=>studioIdentity({...member,tools:[]},env([{id:'old',role:'admin'}]),'content'),e=>e.status===403);
+ });
