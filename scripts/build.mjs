@@ -45,7 +45,7 @@ console.log('Built all four interfaces and seven React routes at '+base);
 
 await build({entryPoints:['web/line.tsx'],outfile:out+'/assets/line.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/project-board/line',{recursive:true});
-await writeFile(out+'/project-board/line/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AITS LINE Archive</title><link rel="stylesheet" href="${base}assets/line.css"></head><body><div id="app"></div><script type="module" src="${base}assets/line.js"></script></body></html>`,'project-board'));
+await writeFile(out+'/project-board/line/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AITS LINE Conversations</title><link rel="stylesheet" href="${base}assets/line.css"></head><body><div id="app"></div><script type="module" src="${base}assets/line.js"></script></body></html>`,'project-board'));
 
 await build({entryPoints:['web/dashboard.tsx'],outfile:out+'/assets/dashboard.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await writeFile(out+'/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f4f4ef"><title>AITS Workspace</title></head><body><div id="app"></div><script type="module" src="${base}assets/dashboard.js"></script></body></html>`,'workplace'));
