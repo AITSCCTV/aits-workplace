@@ -9,9 +9,9 @@
 
 ## Current deployment
 
-Backend deployed on 2026-11-16 at https://aits-workplace-api.aits-api.workers.dev with three isolated D1 databases and private R2 bucket. Owner-only Cloudflare Access login is configured for info@aitscctv.com; live browser verification is pending. The owner authorized existing paid-plan deployment and an account-wide $5 Workers usage limit, which is saved and enabled. D1/R2 and subscription fees are excluded, and enforcement delay can cause overshoot. No plan upgrades or payment actions are authorized. The private calendar snapshot (15 events) has been imported into protected D1 storage. Other source records and uploaded plans have not yet been migrated.
+Backend deployed on 2026-11-16 at https://aits-workplace-api.aits-api.workers.dev with three isolated D1 databases and private R2 bucket. Owner-only Cloudflare Access login is configured for info@aitscctv.com; live sign-in, inventory save/reload, Design Studio save/reopen and migrated board/project loading have been verified. The owner authorized existing paid-plan deployment and an account-wide $5 Workers usage limit, which is saved and enabled. D1/R2 and subscription fees are excluded, and enforcement delay can cause overshoot. No plan upgrades or payment actions are authorized. The private calendar snapshot (15 events) has been imported into protected D1 storage. The private data migration completed on 2026-11-16: 26 tasks, 40 task audit entries, three projects, 11 project revisions, and the earlier 15-event calendar snapshot. All imported database rows were read back and matched. Original inventory, warranty, service and cloud-plan tables were empty. No browser-saved plan was present in the checked AitsCCTV Brave profile; plans stored on other devices or as external files require those devices/files.
 
-See [backend configuration](../backend/README.md) for the implemented adapter and authentication flow. The checklist below describes migration requirements; private data reconciliation remains outstanding.
+See [backend configuration](../backend/README.md) for the implemented adapter and authentication flow. The checklist below describes migration requirements; private data reconciliation has passed.
 
 ## Cloudflare
 
@@ -67,3 +67,7 @@ Before enabling external API URLs:
 - Verify record counts, revisions, object hashes, owner isolation and representative workflows before cutover. Keep the original Sites available until that check succeeds.
 
 The source import alone does not perform these data transfers or grant access to the original platform's underlying Cloudflare account.
+
+## Completed cutover
+
+The original Project Board API/MCP routes now forward to the new workspace using a server-only scoped credential. Existing ChatGPT Project Board tools and both board interfaces share the independent D1 data. The original database remains a rollback snapshot. Inventory and Design Studio use their independent APIs from the new workspace; their original hosted databases contained no records or plans. Employee access is explicitly deferred. Native Google, LINE, Gmail and other ChatGPT connectors are separate services, not embedded integrations of these four Sites. The existing calendar remains a snapshot; a live sync would require a separately configured integration.

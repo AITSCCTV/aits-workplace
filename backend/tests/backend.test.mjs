@@ -36,3 +36,13 @@ test('team role cannot read board, inventory, plans or MCP',async()=>{const w=cr
 test('Design Studio retains R2 saves and revision-conflict behavior through gateway',async()=>{const e=environment(),id=crypto.randomUUID(),plan={version:1,name:'Test plan',scale:25,bg:null,walls:[],devices:[]};assert.equal((await worker.fetch(req('/design-studio/api/plans','POST',{id,plan}),e)).status,201);const saved=await(await worker.fetch(req('/design-studio/api/plans/'+id),e)).json();assert.equal(saved.plan.name,plan.name);assert.equal((await worker.fetch(req('/design-studio/api/plans/'+id,'PUT',{plan,revision:2}),e)).status,409)});
 test('missing private snapshot reports unavailable rather than an empty calendar',async()=>{assert.equal((await worker.fetch(req('/project-board/api/calendar'),environment())).status,503)});
 test('login bridge requires nonce and never puts tokens in URL; restrictive CSP',async()=>{const e=environment();assert.equal((await worker.fetch(req('/auth/login'),e)).status,400);const r=await worker.fetch(req('/auth/login?state='+crypto.randomUUID()),e);assert.equal(r.status,200);assert.match(r.headers.get('content-security-policy'),/frame-ancestors 'none'/);assert.equal(r.headers.get('cache-control'),'no-store');assert.match(await r.text(),/postMessage/)});
+
+test('Sites bridge is secret-authenticated and scoped only to board operations',async()=>{
+ const e=environment();e.SITES_BRIDGE_TOKEN='a'.repeat(64);
+ const request=(path,token=e.SITES_BRIDGE_TOKEN,origin)=>new Request('https://api.example'+path,{headers:{'X-AITS-Sites-Bridge':token,...(origin?{Origin:origin}:{})}});
+ assert.equal((await authenticate(request('/project-board/mcp'),e)).email,'info@aitscctv.com');
+ for(const path of ['/auth/login','/inventory/api/stock','/design-studio/api/plans','/project-board/api/migration-export'])await assert.rejects(authenticate(request(path),e),/Invalid/);
+ await assert.rejects(authenticate(request('/project-board/api/tasks','b'.repeat(64)),e),/Invalid/);
+ await assert.rejects(authenticate(request('/project-board/api/tasks',e.SITES_BRIDGE_TOKEN,'https://aitscctv.github.io'),e),/Invalid/);
+ e.SITES_BRIDGE_TOKEN='';await assert.rejects(authenticate(request('/project-board/api/tasks','a'.repeat(64)),e),/Invalid/);
+});

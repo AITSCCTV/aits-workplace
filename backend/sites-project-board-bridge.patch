@@ -1,0 +1,23 @@
+diff --git a/worker/index.ts b/worker/index.ts
+index 130b5d2..9f6ed57 100644
+--- a/worker/index.ts
++++ b/worker/index.ts
+@@ -10,6 +10,18 @@ const worker = {
+     const identityEmail=request.headers.get('oai-authenticated-user-email');
+     const path=new URL(request.url).pathname;
+     if(!canVisit(identityEmail,path))return new Response('ทีมสามารถส่งข้อมูลได้ที่ /forms/sales หรือ /forms/survey เท่านั้น',{status:403,headers:{'Cache-Control':'no-store'}});
++    // Owner-private Sites remains the authentication boundary for the existing MCP connector.
++    // After migration, both interfaces use the independent workspace as the single data store.
++    const bridgeEnv=env as Cloudflare.Env & { AITS_WORKSPACE_BRIDGE_ENABLED?:string; SITES_BRIDGE_TOKEN?:string };
++    const bridgePaths=['/api/tasks','/api/projects','/api/warranties','/api/service','/api/forms','/api/calendar','/mcp'];
++    if(bridgeEnv.AITS_WORKSPACE_BRIDGE_ENABLED==='true'&&bridgePaths.includes(path)){
++      if(identityEmail&&identityEmail.toLowerCase()!=='info@aitscctv.com')return new Response('Forbidden',{status:403});
++      if(!bridgeEnv.SITES_BRIDGE_TOKEN)return new Response('Workspace connection unavailable',{status:503});
++      const origin=request.headers.get('Origin');if(origin&&origin!==new URL(request.url).origin)return new Response('Forbidden',{status:403});
++      const headers=new Headers({'X-AITS-Sites-Bridge':bridgeEnv.SITES_BRIDGE_TOKEN});
++      if(request.headers.get('content-type'))headers.set('content-type',request.headers.get('content-type')!);
++      return fetch('https://aits-workplace-api.aits-api.workers.dev/project-board'+path+new URL(request.url).search,{method:request.method,headers,body:['GET','HEAD'].includes(request.method)?undefined:request.body,redirect:'manual'}).then(response=>{if(response.status>=300&&response.status<400)return new Response('Workspace upstream redirect rejected',{status:502});const result=new Response(response.body,response);result.headers.set('X-AITS-Data-Source','workspace');return result;});
++    }
+     let binding = ctx.props?.CONNECTORS;
+     // Local preview emulates the same request-scoped capability. This branch and
+     // the auxiliary service binding are absent from production builds.

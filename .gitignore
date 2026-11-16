@@ -7,3 +7,5 @@ node_modules/
 *.pem
 private-data/
 backend/dist/
+
+__pycache__/

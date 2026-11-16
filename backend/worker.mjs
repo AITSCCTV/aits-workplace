@@ -42,7 +42,7 @@ export function createWorker(verify=authenticate){return {async fetch(request,en
   const db={ 'project-board':env.DB_PROJECT_BOARD,inventory:env.DB_INVENTORY,'design-studio':env.DB_DESIGN_STUDIO}[app];
   if(!db)throw new HttpError(503,'Database not configured.');
   const headers=new Headers(request.headers);
-  for(const key of [...headers.keys()])if(key.startsWith('oai-')||['authorization','cf-access-jwt-assertion','cookie','content-length'].includes(key))headers.delete(key);
+  for(const key of [...headers.keys()])if(key.startsWith('oai-')||['authorization','cf-access-jwt-assertion','cookie','content-length','x-aits-sites-bridge'].includes(key))headers.delete(key);
   headers.set('oai-authenticated-user-id',user.id);headers.set('oai-authenticated-user-email',user.email);
   // External origin was validated above. Original handlers execute as internal same-origin requests.
   headers.set('Origin',url.origin);
