@@ -5,7 +5,7 @@
  routes.push(['admin/','จัดการสิทธิ์พนักงาน','Employee access','M15 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0M7 21v-3a5 5 0 0 1 10 0v3M7 7a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0M1 18v-3a3.5 3.5 0 0 1 5-3.16M22 7a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0M23 18v-3a3.5 3.5 0 0 0-5-3.16']);
  const visible=r=>!r[0]||(r[0]==='admin/'?window.AITS_SESSION.info()?.admin:window.AITS_SESSION.can(routeTool(r[0])));
  const t=(th,en)=>window.AITS_I18N.language()==='en'?en:th;
- const icon=path=>path==='M4 4h16v13H9l-5 4zM8 8h8m-8 4h5'?'<img class="aits-line-icon" src="'+base+'brand/line-icon.png" width="24" height="24" alt="" aria-hidden="true">':'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="'+path+'"/></svg>';
+ const icon=path=>path==='M8 4h8M12 2v2M5 7h14v13H5zM2 11v5m20-5v5M9 11v2m6-2v2M9 17h6'?'<img src="'+base+'brand/aits-icon.svg" width="24" height="24" alt="" aria-hidden="true">':path==='M4 4h16v13H9l-5 4zM8 8h8m-8 4h5'?'<img class="aits-line-icon" src="'+base+'brand/line-icon.png" width="24" height="24" alt="" aria-hidden="true">':'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="'+path+'"/></svg>';
  document.addEventListener('DOMContentLoaded',()=>{
   document.body.classList.add('aits-ui');try{document.body.classList.toggle('aits-nav-expanded',localStorage.getItem('aits-nav-expanded')==='true')}catch{}document.body.dataset.aitsApp=config.app;
   const sidebar=document.createElement('nav');sidebar.className='aits-sidebar';sidebar.dataset.noTranslate='';
