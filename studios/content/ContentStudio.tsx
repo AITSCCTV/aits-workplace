@@ -213,7 +213,7 @@ export default function ContentStudio() {
             target="_blank"
             rel="noreferrer"
           >
-            <img src={"/aits-cctv.png"} alt="AITSCCTV" />
+            <span>AITSCCTV</span>
           </a>
           <div className="rail-label">{t("พื้นที่ทำงาน")}</div>
           <button
