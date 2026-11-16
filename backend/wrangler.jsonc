@@ -3,21 +3,52 @@
   "main": "dist/worker.js",
   "account_id": "697374558c37675cce6faada1e10bf04",
   "compatibility_date": "2026-11-16",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "workers_dev": true,
   "preview_urls": false,
-  "limits": {"cpu_ms": 50},
+  "limits": {
+    "cpu_ms": 50
+  },
   "d1_databases": [
-    {"binding":"DB_PROJECT_BOARD","database_name":"aits-workplace-project-board","database_id":"8be181a2-bafb-4fe4-98bc-1169f4740330"},
-    {"binding":"DB_INVENTORY","database_name":"aits-workplace-inventory","database_id":"3e2b0dc8-4208-4633-ae4b-f16f55c8f72d"},
-    {"binding":"DB_DESIGN_STUDIO","database_name":"aits-workplace-design-studio","database_id":"5ddf8d6f-0b68-4234-9580-136455b89024"}
+    {
+      "binding": "DB_PROJECT_BOARD",
+      "database_name": "aits-workplace-project-board",
+      "database_id": "8be181a2-bafb-4fe4-98bc-1169f4740330"
+    },
+    {
+      "binding": "DB_INVENTORY",
+      "database_name": "aits-workplace-inventory",
+      "database_id": "3e2b0dc8-4208-4633-ae4b-f16f55c8f72d"
+    },
+    {
+      "binding": "DB_DESIGN_STUDIO",
+      "database_name": "aits-workplace-design-studio",
+      "database_id": "5ddf8d6f-0b68-4234-9580-136455b89024"
+    },
+    {
+      "binding": "DB_LINE_ARCHIVE",
+      "database_name": "aits-db",
+      "database_id": "7c2f3bc4-79b7-4bac-a427-26806fd55e76"
+    }
   ],
-  "r2_buckets": [{"binding":"BUCKET","bucket_name":"aits-workplace-plans"}],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "aits-workplace-plans"
+    }
+  ],
   "vars": {
     "FRONTEND_ORIGIN": "https://aitscctv.github.io",
     "TEAM_DOMAIN": "https://solitary-night-1767.cloudflareaccess.com",
     "POLICY_AUD": "72f67e633ac9c1aaeaee8df92899bbf54bce807651065a9f0b629d6454417e80",
     "ADMIN_EMAILS": "info@aitscctv.com",
     "TEAM_EMAILS": ""
+  },
+  "triggers": {
+    "crons": [
+      "*/15 * * * *"
+    ]
   }
 }

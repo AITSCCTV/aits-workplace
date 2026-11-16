@@ -42,6 +42,6 @@
       const timeout=setTimeout(()=>{window.removeEventListener('message',receive);status.textContent='Sign-in timed out. Please try again.';},300000);
     };
     window.addEventListener('aits-auth-expired',refresh);bar.append(login,logout);
-    const link=document.createElement('a');link.href=config.original;link.textContent='Open original Site';link.rel='noopener';link.target='_blank';bar.append(link);refresh();document.body.prepend(bar);
+    const link=document.createElement('a');link.href=config.original;link.textContent='Open original Site';link.rel='noopener';link.target='_blank';bar.append(link);if(config.app==='project-board'){const archive=document.createElement('a');archive.href=config.base+'project-board/line/';archive.textContent='LINE · คลังข้อความ';bar.append(archive);}refresh();document.body.prepend(bar);
   });
 })();

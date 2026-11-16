@@ -1,0 +1,7 @@
+// Deployment adapter: preserve the imported Sites source byte-for-byte.
+export function calendarBuild(contents){
+ const start=contents.indexOf('<details className="calnotice"><summary>ข้อมูลปฏิทินเป็นภาพบันทึก');
+ if(start<0)throw Error('Calendar notice anchor missing');const end=contents.indexOf('</details>',start)+10;
+ const notice=`<details open className="calnotice"><summary>{snapshot?.mode==='automatic'?'Google Calendar · อัปเดตอัตโนมัติทุก 15 นาที':'Google Calendar · ยังไม่ได้เปิดซิงก์อัตโนมัติ'}</summary><p>ข้อมูลล่าสุด: {snapshot?new Date(snapshot.asOf).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'}):'—'} · เวลาไทย</p><p>ขอบเขตข้อมูล: {snapshot?.from||'—'} ถึง {snapshot?.to||'—'} · {snapshot?.calendars||'—'} ปฏิทิน</p>{snapshot?.sync?.status==='error'&&<p role="alert">ซิงก์ล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลครั้งก่อน</p>}{snapshot?.mode==='automatic'&&Date.now()-Date.parse(snapshot.asOf)>1800000&&<p role="alert">ข้อมูลอาจล้าสมัย โปรดตรวจสอบการเชื่อมต่อ</p>}<p>ไม่มีรายการไม่ได้แปลว่าว่าง · วันนอกขอบเขตยังไม่มีข้อมูล</p></details>`;
+ return (contents.slice(0,start)+notice+contents.slice(end)).replace('useEffect(()=>{load()},[]);',"useEffect(()=>{load();const timer=setInterval(()=>{if(!document.hidden)load()},60000);return()=>clearInterval(timer)},[]);");
+}

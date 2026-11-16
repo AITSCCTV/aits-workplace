@@ -1,5 +1,7 @@
 import {runWithContext} from './context.mjs';
 import {authenticate,authorize,HttpError} from './auth.mjs';
+import {syncCalendars} from './calendar-sync.mjs';
+import {readArchive} from './line-archive.mjs';
 import * as tasks from '../sites/project-board/app/api/tasks/route.ts';
 import * as projects from '../sites/project-board/app/api/projects/route.ts';
 import * as warranties from '../sites/project-board/app/api/warranties/route.ts';
@@ -16,7 +18,7 @@ async function limitedBody(request,limit){
  for(;;){const {done,value}=await reader.read();if(done)break;length+=value.length;if(length>limit){await reader.cancel();throw new HttpError(413,'Request is too large.');}chunks.push(value);}
  const bytes=new Uint8Array(length);let i=0;for(const c of chunks){bytes.set(c,i);i+=c.length;}return bytes;
 }
-export function createWorker(verify=authenticate){return {async fetch(request,env){
+export function createWorker(verify=authenticate){return {async scheduled(controller,env,ctx){ctx.waitUntil(syncCalendars(env));},async fetch(request,env){
  const url=new URL(request.url),origin=request.headers.get('Origin');
  const allowed=env.FRONTEND_ORIGIN==='https://aitscctv.github.io'?env.FRONTEND_ORIGIN:null;
  const cors=origin===allowed;
@@ -52,9 +54,16 @@ export function createWorker(verify=authenticate){return {async fetch(request,en
   const response=await runWithContext({env:bindings,request:internal},async()=>{
    if(app==='design-studio')return plans(internal,bindings);
    if(app==='project-board'&&path==='/api/calendar'){
+    if(request.method!=='GET')throw new HttpError(405,'Read-only calendar.');
     const row=await db.prepare('SELECT data FROM calendar_snapshot WHERE id=1').first();
     if(!row)return json({error:'Calendar snapshot has not been migrated yet.'},503);
-    return json(JSON.parse(row.data));
+    const sync=await db.prepare("SELECT status,attempted_at,success_at,error_code FROM sync_status WHERE id='calendar'").first();
+    return json({...JSON.parse(row.data),sync});
+   }
+   if(app==='project-board'&&path==='/api/line')return readArchive(internal,env);
+   if(app==='project-board'&&path==='/api/sync-status'){
+    if(request.method!=='GET')throw new HttpError(405,'Read-only status.');
+    return json({calendar:await db.prepare("SELECT status,attempted_at,success_at,error_code FROM sync_status WHERE id='calendar'").first(),line:env.DB_LINE_ARCHIVE?'live_archive':'not_configured'});
    }
    const route=app==='inventory'?(path==='/api/stock'?stock:null):routes[path];
    if(!route)throw new HttpError(404,'Not found.');
