@@ -1142,5 +1142,10 @@
   "วันเริ่ม / ระยะ / หมดอายุ": "Start date / Duration / Expiry",
   "ผู้กรอกต้องได้รับสิทธิ์เข้า Site ก่อน": "Submitters need site access before completing this form",
   "บันทึก Cloud แล้ว": "Saved to cloud",
-  "เปิดจาก Cloud แล้ว": "Opened from cloud"
+  "เปิดจาก Cloud แล้ว": "Opened from cloud",
+  "แผนก ฝ่ายขาย": "Sales department",
+  "แผนก วิศวกรรม": "Engineering department",
+  "แผนก บริหารโครงการ": "Project management department",
+  "แผนก บริการหลังขาย": "After-sales service department",
+  "แผนก บัญชีและคลัง": "Accounting and inventory department"
 }
