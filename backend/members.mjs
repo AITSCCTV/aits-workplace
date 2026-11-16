@@ -18,25 +18,38 @@ export async function membersApi(request,env,user){
  if(!user.admin||!user.token)throw new HttpError(403,'Only the workspace owner can manage employee access.');
  const db=env.DB_PROJECT_BOARD,owner=ownerEmails(env).includes(user.email);
 
- if(request.method==='GET')return Response.json({owner,passwordLoginEnabled:env.PASSWORD_LOGIN_ENABLED==='true',roles:rolePresets.filter(r=>owner||r.id!=='admin'),loginReady:env.EMPLOYEE_LOGIN_READY==='true',owners:ownerEmails(env),catalog:toolsCatalog,members:(await db.prepare('SELECT * FROM workspace_members ORDER BY email LIMIT 501').all()).results.map(decode)});
+ if(request.method==='GET')return Response.json({owner,passwordLoginEnabled:env.PASSWORD_LOGIN_ENABLED==='true',roles:rolePresets.filter(r=>owner||r.id!=='admin'),loginReady:env.EMPLOYEE_LOGIN_READY==='true',owners:ownerEmails(env),catalog:toolsCatalog,members:(await db.prepare('SELECT * FROM workspace_members WHERE removed_at IS NULL ORDER BY email LIMIT 501').all()).results.map(decode)});
  if(request.method!=='POST')throw new HttpError(405,'POST is required.');
  if(!request.headers.get('content-type')?.startsWith('application/json'))throw new HttpError(415,'JSON is required.');
  let b;try{b=await request.json()}catch{throw new HttpError(400,'Invalid JSON.');}
  const email=typeof b?.email==='string'?b.email.trim().toLowerCase():'';
  if(email.length>254||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new HttpError(400,'Enter a valid employee email.');
  if(ownerEmails(env).includes(email))throw new HttpError(403,'Owner access cannot be changed here.');
+ const before=await db.prepare('SELECT * FROM workspace_members WHERE email=?').bind(email).first();
+ if(!owner&&(before?.role==='admin'||email===user.email))throw new HttpError(403,'Only the owner can change administrator accounts.');
+ if(b.action==='remove'){
+  if(!Number.isInteger(b.revision)||!before||before.removed_at||before.revision!==b.revision)throw new HttpError(409,'Access changed. Reload and review before removing.');
+  const at=new Date().toISOString(),auditId=crypto.randomUUID();
+  const result=await db.batch([
+   db.prepare("UPDATE workspace_members SET enabled=0,tools='[]',removed_at=?,revoked_before=?,revision=revision+1,updated_at=?,updated_by=? WHERE email=? AND revision=? AND removed_at IS NULL").bind(at,Math.floor(Date.now()/1000),at,user.email,email,b.revision),
+   db.prepare('INSERT INTO workspace_member_audit(id,email,actor,before_data,after_data,at) SELECT ?,?,?,?,?,? WHERE changes()=1').bind(auditId,email,user.email,JSON.stringify(decode(before)),JSON.stringify({email,removed:true}),at),
+   db.prepare('DELETE FROM workspace_passwords WHERE email=? AND EXISTS(SELECT 1 FROM workspace_member_audit WHERE id=?)').bind(email,auditId),
+   db.prepare('DELETE FROM workspace_sessions WHERE email=? AND EXISTS(SELECT 1 FROM workspace_member_audit WHERE id=?)').bind(email,auditId)
+  ]);
+  if(!result[0].meta.changes)throw new HttpError(409,'Access changed. Reload and review before removing.');
+  return Response.json({removed:true,email});
+ }
+ if(b.action!==undefined)throw new HttpError(400,'Unknown account action.');
  if(typeof b.enabled!=='boolean'||!Number.isInteger(b.revision)||b.revision<0||!Array.isArray(b.tools)||b.tools.length>toolsCatalog.length||b.tools.some(t=>!toolsCatalog.some(c=>c.id===t)))throw new HttpError(400,'Invalid permissions.');
  const role=b.role||'custom';
  if(!rolePresets.some(r=>r.id===role))throw new HttpError(400,'Unknown role.');
  if(!owner&&role==='admin')throw new HttpError(403,'Only the owner can assign administrators.');
  const selected=role==='admin'?toolsCatalog.map(t=>t.id).sort():[...new Set(b.tools)].sort();
  if(toolsCatalog.some(t=>selected.includes(t.id)&&t.requires.some(id=>!selected.includes(id))))throw new HttpError(400,'LINE review also requires Task board, Projects and LINE archive.');
- const before=await db.prepare('SELECT * FROM workspace_members WHERE email=?').bind(email).first();
- if(!owner&&(before?.role==='admin'||email===user.email))throw new HttpError(403,'Only the owner can change administrator accounts.');
- if((before?.revision||0)!==b.revision)throw new HttpError(409,'Access changed. Reload and review before saving.');
- if(!before&&(await db.prepare('SELECT count(*) AS n FROM workspace_members').first()).n>=500)throw new HttpError(400,'Employee limit reached.');
- const at=new Date().toISOString(),tools=JSON.stringify(selected),next={email,role,tools:selected,enabled:b.enabled,revision:b.revision+1};
- const mutation=before?db.prepare('UPDATE workspace_members SET tools=?,enabled=?,role=?,revision=revision+1,updated_at=?,updated_by=? WHERE email=? AND revision=?').bind(tools,+b.enabled,role,at,user.email,email,b.revision):db.prepare('INSERT OR IGNORE INTO workspace_members(email,tools,enabled,role,revision,updated_at,updated_by) VALUES(?,?,?,?,1,?,?)').bind(email,tools,+b.enabled,role,at,user.email);
+ if((before&&!before.removed_at?before.revision:0)!==b.revision)throw new HttpError(409,'Access changed. Reload and review before saving.');
+ if((!before||before.removed_at)&&(await db.prepare('SELECT count(*) AS n FROM workspace_members WHERE removed_at IS NULL').first()).n>=500)throw new HttpError(400,'Employee limit reached.');
+ const revision=before?.revision||0,at=new Date().toISOString(),tools=JSON.stringify(selected),next={email,role,tools:selected,enabled:b.enabled,revision:revision+1};
+ const mutation=before?db.prepare('UPDATE workspace_members SET tools=?,enabled=?,role=?,removed_at=NULL,revision=revision+1,updated_at=?,updated_by=? WHERE email=? AND revision=?').bind(tools,+b.enabled,role,at,user.email,email,revision):db.prepare('INSERT OR IGNORE INTO workspace_members(email,tools,enabled,role,revision,updated_at,updated_by) VALUES(?,?,?,?,1,?,?)').bind(email,tools,+b.enabled,role,at,user.email);
  const result=await db.batch([mutation,db.prepare('INSERT INTO workspace_member_audit(id,email,actor,before_data,after_data,at) SELECT ?,?,?,?,?,? WHERE changes()=1').bind(crypto.randomUUID(),email,user.email,before?JSON.stringify(decode(before)):null,JSON.stringify(next),at)]);
  if(!result[0].meta.changes)throw new HttpError(409,'Access changed. Reload and review before saving.');
  return Response.json({member:next});

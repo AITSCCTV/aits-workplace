@@ -32,7 +32,8 @@ export async function passwordLogin(request,env){
  const candidate=derive(b.password,row?.salt||'aits-unknown-account-dummy-salt');
  if(!row||!timingSafeEqual(Buffer.from(candidate,'hex'),Buffer.from(row.hash,'hex'))||!row.enabled||(row.must_change&&row.temporary_expires<now()))throw new HttpError(401,'Incorrect account or password.');
  const token='aits_ws_'+randomBytes(32).toString('base64url');
- await db.prepare('INSERT INTO workspace_sessions(token_hash,email,expires,password_revision) VALUES(?,?,?,?)').bind(digest(token),email,now()+(row.must_change?900:28800),row.revision).run();
+ const inserted=await db.prepare('INSERT INTO workspace_sessions(token_hash,email,expires,password_revision) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM workspace_passwords p JOIN workspace_members m ON p.email=m.email WHERE p.email=? AND p.revision=? AND p.hash=? AND m.enabled=1)').bind(digest(token),email,now()+(row.must_change?900:28800),row.revision,email,row.revision,row.hash).run();
+ if(!inserted.meta.changes)throw new HttpError(401,'Account changed. Please sign in again.');
  return Response.json({token,email,mustChangePassword:!!row.must_change});
 }
 export async function passwordApi(request,env,user){

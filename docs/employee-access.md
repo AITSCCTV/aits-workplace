@@ -9,6 +9,15 @@ handled by disabling the old account and adding the new email.
 
 Apply `backend/migrations/members.sql`, then the one-time `backend/migrations/accounts.sql`, to DB_PROJECT_BOARD before deploying. Do not re-run the ALTER TABLE migration.
 Membership and audit records stay in D1, never in the GitHub Pages bundle.
+Apply `backend/migrations/remove-members.sql` once before deploying account removal.
+To remove an account, select it in Admin, choose Remove this account and confirm
+the displayed email. Removal hides the member, disables access, clears grants,
+deletes the password and password sessions, and writes an audit event in one
+transaction. Work records and audit history are retained. The owner is protected;
+only the owner can remove another administrator. A retained disabled membership
+record prevents fallback allowlists from granting access. Re-adding an email uses
+a new revision and requires fresh Google authentication or a newly issued password;
+previous Google tokens remain rejected using the removal timestamp.
 ADMIN_EMAILS bootstraps protected owners. Ordinary employees cannot grant themselves tools, manage accounts, invoke MCP or run manual calendar sync. The private Sites bridge
 cannot manage employees. Writes use revision checks and transactional audit rows.
 

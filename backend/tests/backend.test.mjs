@@ -10,10 +10,49 @@ import {readArchive} from '../line-archive.mjs';
 import {scanLine,suggestMessage,approveReview,reviewApi} from '../line-review.mjs';
 const origin='https://aitscctv.github.io';
 function database(files){const sql=new DatabaseSync(':memory:');for(const file of files)sql.exec(readFileSync(file,'utf8'));const wrap=(query,args=[])=>({bind(...values){return wrap(query,values)},async first(){return sql.prepare(query).get(...args)||null},async all(){return {results:sql.prepare(query).all(...args)}},async run(){return {meta:{changes:sql.prepare(query).run(...args).changes}}}});return {sql,prepare:query=>wrap(query),async batch(queries){sql.exec('BEGIN');try{const result=[];for(const q of queries)result.push(await q.run());sql.exec('COMMIT');return result}catch(e){sql.exec('ROLLBACK');throw e}}};}
-function environment(){const objects=new Map();return {FRONTEND_ORIGIN:origin,ADMIN_EMAILS:'info@aitscctv.com',TEAM_EMAILS:'team@example.com',TEAM_DOMAIN:'https://aits-test.cloudflareaccess.com',POLICY_AUD:'test-audience',DB_PROJECT_BOARD:database(['sites/project-board/drizzle/0000_flowery_the_professor.sql','sites/project-board/drizzle/0001_mute_silver_sable.sql','backend/migrations/calendar.sql','backend/migrations/sync.sql','backend/migrations/review.sql','backend/migrations/members.sql','backend/migrations/accounts.sql']),DB_INVENTORY:database(['sites/inventory/drizzle/0000_overrated_corsair.sql']),DB_DESIGN_STUDIO:database(['sites/design-studio/drizzle/0000_smiling_hobgoblin.sql']),BUCKET:{put:async(k,v)=>objects.set(k,v),get:async k=>objects.has(k)?{text:async()=>objects.get(k)}:null,delete:async k=>objects.delete(k)}};}
+function environment(){const objects=new Map();return {FRONTEND_ORIGIN:origin,ADMIN_EMAILS:'info@aitscctv.com',TEAM_EMAILS:'team@example.com',TEAM_DOMAIN:'https://aits-test.cloudflareaccess.com',POLICY_AUD:'test-audience',DB_PROJECT_BOARD:database(['sites/project-board/drizzle/0000_flowery_the_professor.sql','sites/project-board/drizzle/0001_mute_silver_sable.sql','backend/migrations/calendar.sql','backend/migrations/sync.sql','backend/migrations/review.sql','backend/migrations/members.sql','backend/migrations/accounts.sql','backend/migrations/remove-members.sql']),DB_INVENTORY:database(['sites/inventory/drizzle/0000_overrated_corsair.sql']),DB_DESIGN_STUDIO:database(['sites/design-studio/drizzle/0000_smiling_hobgoblin.sql']),BUCKET:{put:async(k,v)=>objects.set(k,v),get:async k=>objects.has(k)?{text:async()=>objects.get(k)}:null,delete:async k=>objects.delete(k)}};}
 const req=(path,method='GET',body,extra={})=>new Request('https://api.example'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...extra},body:body===undefined?undefined:JSON.stringify(body)});
 const admin={id:'verified-owner',email:'info@aitscctv.com',admin:true,token:'signed-token'};
 const worker=createWorker(async()=>admin);
+
+test('removal revokes Google and password sessions, preserves work and cannot revive stale access on re-add',async()=>{
+ const e=environment(),email='remove@aits.local',path='/project-board/api/members';e.PASSWORD_LOGIN_ENABLED='true';
+ e.DB_LINE_ARCHIVE={prepare:()=>({bind:()=>({all:async()=>({results:[]})})})};
+ const input={email,role:'engineer',tools:['tasks','floorplan-studio','content-studio'],enabled:true,revision:0};
+ await worker.fetch(req(path,'POST',input),e);
+ e.DB_PROJECT_BOARD.sql.prepare('INSERT INTO tasks VALUES(?,?,?,?)').run('keep-work','{"title":"Keep work"}',1,'2026-11-16');
+ const temporary=(await(await worker.fetch(req('/project-board/api/member-password','POST',{email}),e)).json()).temporaryPassword;
+ const live=createWorker(),passwordToken=(await(await live.fetch(req('/auth/password/login','POST',{email,password:temporary}),e)).json()).token;
+ const {privateKey,publicKey}=await generateKeyPair('RS256');
+ const jwt=await new SignJWT({email}).setProtectedHeader({alg:'RS256'}).setSubject('employee').setIssuedAt(Math.floor(Date.now()/1000)-60).setExpirationTime('1h').setIssuer(e.TEAM_DOMAIN).setAudience(e.POLICY_AUD).sign(privateKey);
+ const google=createWorker((r,env)=>authenticate(r,env,publicKey)),headers={Authorization:'Bearer '+jwt};
+ assert.equal((await google.fetch(req('/auth/studio/floorplan','GET',undefined,headers),e)).status,200);
+ assert.equal((await worker.fetch(req(path,'POST',{action:'remove',email,revision:0}),e)).status,409);
+ assert.equal((await worker.fetch(req(path,'POST',{action:'remove',email,revision:1}),e)).status,200);
+ assert.equal((await(await worker.fetch(req(path),e)).json()).members.length,0);
+ for(const route of ['/auth/me','/project-board/api/tasks','/auth/studio/floorplan','/auth/studio/content'])await assert.rejects(authenticate(req(route,'GET',undefined,headers),e,publicKey),err=>err.status===403);
+ assert.equal((await live.fetch(req('/auth/me','GET',undefined,{Authorization:'Bearer '+passwordToken}),e)).status,401);
+ assert.equal(e.DB_PROJECT_BOARD.sql.prepare('SELECT count(*) n FROM workspace_passwords').get().n,0);
+ assert.equal(e.DB_PROJECT_BOARD.sql.prepare('SELECT count(*) n FROM workspace_sessions').get().n,0);
+ assert.equal(e.DB_PROJECT_BOARD.sql.prepare('SELECT count(*) n FROM tasks').get().n,1);
+ assert.ok(e.DB_PROJECT_BOARD.sql.prepare("SELECT 1 FROM workspace_member_audit WHERE json_extract(after_data,'$.removed')=1").get());
+ const restored=await(await worker.fetch(req(path,'POST',input),e)).json();assert.equal(restored.member.revision,3);
+ await assert.rejects(authenticate(req('/auth/me','GET',undefined,headers),e,publicKey),err=>err.status===401);
+ assert.equal((await worker.fetch(req(path,'POST',{...input,revision:1}),e)).status,409);
+ assert.equal((await worker.fetch(req(path,'POST',{action:'remove',email,revision:1}),e)).status,409);
+ assert.equal((await live.fetch(req('/auth/password/login','POST',{email,password:temporary}),e)).status,401);
+});
+
+test('removal protects owners and administrators and requires authorized management',async()=>{
+ const e=environment(),path='/project-board/api/members',email='admin@aits.local';
+ await worker.fetch(req(path,'POST',{email,role:'admin',tools:[],enabled:true,revision:0}),e);
+ const delegated=createWorker(async()=>({...admin,email,owner:false,role:'admin'}));
+ assert.equal((await worker.fetch(req(path,'POST',{action:'remove',email:admin.email,revision:1}),e)).status,403);
+ assert.equal((await delegated.fetch(req(path,'POST',{action:'remove',email,revision:1}),e)).status,403);
+ const employee=createWorker(async()=>({...admin,admin:false}));
+ assert.equal((await employee.fetch(req(path,'POST',{action:'remove',email,revision:1}),e)).status,403);
+ assert.equal((await worker.fetch(req(path,'POST',{action:'remove',email,revision:1}),e)).status,200);
+});
 
 test('password accounts require first-login change, preserve tool restrictions and revoke sessions on reset',async()=>{
  const e=environment();e.PASSWORD_LOGIN_ENABLED='true';const email='engineer01@aits.local';
