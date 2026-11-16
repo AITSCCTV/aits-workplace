@@ -2,6 +2,7 @@ import {runWithContext} from './context.mjs';
 import {authenticate,authorize,HttpError} from './auth.mjs';
 import {syncCalendars} from './calendar-sync.mjs';
 import {readArchive} from './line-archive.mjs';
+import {scanLine,reviewApi} from './line-review.mjs';
 import * as tasks from '../sites/project-board/app/api/tasks/route.ts';
 import * as projects from '../sites/project-board/app/api/projects/route.ts';
 import * as warranties from '../sites/project-board/app/api/warranties/route.ts';
@@ -18,7 +19,7 @@ async function limitedBody(request,limit){
  for(;;){const {done,value}=await reader.read();if(done)break;length+=value.length;if(length>limit){await reader.cancel();throw new HttpError(413,'Request is too large.');}chunks.push(value);}
  const bytes=new Uint8Array(length);let i=0;for(const c of chunks){bytes.set(c,i);i+=c.length;}return bytes;
 }
-export function createWorker(verify=authenticate){return {async scheduled(controller,env,ctx){ctx.waitUntil(syncCalendars(env));},async fetch(request,env){
+export function createWorker(verify=authenticate){return {async scheduled(controller,env,ctx){ctx.waitUntil(Promise.allSettled([syncCalendars(env),scanLine(env)]));},async fetch(request,env){
  const url=new URL(request.url),origin=request.headers.get('Origin');
  const allowed=env.FRONTEND_ORIGIN==='https://aitscctv.github.io'?env.FRONTEND_ORIGIN:null;
  const cors=origin===allowed;
@@ -61,6 +62,7 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
     return json({...JSON.parse(row.data),sync});
    }
    if(app==='project-board'&&path==='/api/line')return readArchive(internal,env);
+   if(app==='project-board'&&path==='/api/review')return reviewApi(internal,env,user);
    if(app==='project-board'&&path==='/api/sync-calendar'){
     if(request.method!=='POST')throw new HttpError(405,'POST is required.');
     const result=await syncCalendars(env);return json(result,result.status==='error'?503:200);

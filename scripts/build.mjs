@@ -46,3 +46,7 @@ await writeFile(out+'/project-board/line/index.html',inject(`<!doctype html><htm
 
 await build({entryPoints:['web/dashboard.tsx'],outfile:out+'/assets/dashboard.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await writeFile(out+'/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f4f4ef"><title>AITS Workspace</title></head><body><div id="app"></div><script type="module" src="${base}assets/dashboard.js"></script></body></html>`,'workplace'));
+
+await build({entryPoints:['web/review.tsx'],outfile:out+'/assets/review.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
+await mkdir(out+'/project-board/review',{recursive:true});
+await writeFile(out+'/project-board/review/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AITS Review Queue</title></head><body><div id="app"></div><script type="module" src="${base}assets/review.js"></script></body></html>`,'project-board'));

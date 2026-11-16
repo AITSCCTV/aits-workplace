@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import './sync.css';
 function App(){
- const [messages,setMessages]=useState<any[]>([]),[customer,setCustomer]=useState(''),[cursor,setCursor]=useState<string|null>(null),[asOf,setAsOf]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+ const [messages,setMessages]=useState<any[]>([]),[customer,setCustomer]=useState(new URLSearchParams(location.search).get('customer')||''),[cursor,setCursor]=useState<string|null>(null),[asOf,setAsOf]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const requestId=useRef(0),loading=useRef(false);
  async function load(older=false){if(loading.current)return;loading.current=true;setBusy(true);const id=++requestId.current;try{
   const query=new URLSearchParams();if(customer)query.set('customer',customer);if(older&&cursor)query.set('cursor',cursor);

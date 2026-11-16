@@ -1,6 +1,6 @@
 (()=>{
  const config=window.AITS_CONFIG,base=config.base;
- const routes=[['','ภาพรวม','Overview','M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'],['project-board/','บอร์ดงาน','Task board','M4 5h16v15H4zM8 3v4m8-4v4M8 11h8m-8 4h5'],['project-board/projects/','โครงการ','Projects','M3 7h7l2-3h9v16H3z'],['project-board/calendar/','ปฏิทิน','Calendar','M4 6h16v14H4zM8 3v6m8-6v6M4 11h16'],['project-board/line/','บทสนทนา LINE','LINE conversations','M4 4h16v13H9l-5 4zM8 8h8m-8 4h5'],['design-studio/','สตูดิโอออกแบบ','Design studio','m15 4 5 5-11 11H4v-5zM13 6l5 5'],['inventory/','คลังอุปกรณ์','Inventory','m3 7 9-4 9 4v11l-9 4-9-4zM3 7l9 4 9-4M12 11v11'],['project-board/service/','บริการและประกัน','Service & warranty','M12 3 3 7v5c0 5 9 10 9 10s9-5 9-10V7zM8 12l3 3 5-6']];
+ const routes=[['','ภาพรวม','Overview','M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'],['project-board/','บอร์ดงาน','Task board','M4 5h16v15H4zM8 3v4m8-4v4M8 11h8m-8 4h5'],['project-board/projects/','โครงการ','Projects','M3 7h7l2-3h9v16H3z'],['project-board/calendar/','ปฏิทิน','Calendar','M4 6h16v14H4zM8 3v6m8-6v6M4 11h16'],['project-board/review/','ตรวจข้อเสนอ','Review queue','M4 4h16v16H4zM8 12l3 3 5-6'],['project-board/line/','บทสนทนา LINE','LINE conversations','M4 4h16v13H9l-5 4zM8 8h8m-8 4h5'],['design-studio/','สตูดิโอออกแบบ','Design studio','m15 4 5 5-11 11H4v-5zM13 6l5 5'],['inventory/','คลังอุปกรณ์','Inventory','m3 7 9-4 9 4v11l-9 4-9-4zM3 7l9 4 9-4M12 11v11'],['project-board/service/','บริการและประกัน','Service & warranty','M12 3 3 7v5c0 5 9 10 9 10s9-5 9-10V7zM8 12l3 3 5-6']];
  const t=(th,en)=>window.AITS_I18N.language()==='en'?en:th;
  const icon=path=>'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="'+path+'"/></svg>';
  document.addEventListener('DOMContentLoaded',()=>{
@@ -21,7 +21,7 @@
    input.oninput=find;input.onkeydown=e=>{if(e.key==='ArrowDown'){e.preventDefault();results.querySelector('a')?.focus()}if(e.key==='Enter')results.querySelector('a')?.click()};palette.querySelector('button').onclick=()=>palette.close();find();
   }
   palette.addEventListener('click',e=>{if(e.target===palette)palette.close()});
-  document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(palette.open)palette.close();else openSearch()}if(e.key==='Escape'&&document.body.classList.contains('aits-menu-open'))toggle()});
+  document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(palette.open)palette.close();else openSearch()}if(e.key==='Escape'&&palette.open){e.preventDefault();palette.close()}if(e.key==='Escape'&&document.body.classList.contains('aits-menu-open'))toggle()});
   document.body.prepend(sidebar,menu);document.body.append(palette);render();window.addEventListener('aits-language-change',render);
  });
 })();
