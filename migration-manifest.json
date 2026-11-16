@@ -45,11 +45,6 @@
         "copiedUnchanged": true
       },
       {
-        "path": "README.md",
-        "sha256": "c25c4406717005a1cadbfcf410f6196fe43685cfa796412427fa1f904a7a67e7",
-        "copiedUnchanged": true
-      },
-      {
         "path": "app/api/stock/route.ts",
         "sha256": "394f4924045c7a51961bf34877a03ab29ed3906b8585550ffc5ef8c0f0246a9d",
         "copiedUnchanged": true
@@ -734,26 +729,6 @@
       {
         "path": ".openai/hosting.json",
         "sha256": "a7a9483876b3ff727bbd8838aea4bc3602c94a43b2d30d482ab11c78f68c7161",
-        "copiedUnchanged": true
-      },
-      {
-        "path": "PROJECT_PROGRESS.md",
-        "sha256": "4514d25dae6546740506cc9c390e76ca3f82d5a2a186345b2ac1452a95d80de6",
-        "copiedUnchanged": true
-      },
-      {
-        "path": "PROJECT_WORKSPACE.md",
-        "sha256": "0d42cb496cae936f4c0e8771d21a78c1cc106e8fa60e8e3cd86ac381bd8c2515",
-        "copiedUnchanged": true
-      },
-      {
-        "path": "QUOTE_PILOT.md",
-        "sha256": "62d230fdd3fac0d0194358099d792829d07c15f627282e364a471479368df7e8",
-        "copiedUnchanged": true
-      },
-      {
-        "path": "README.md",
-        "sha256": "c25c4406717005a1cadbfcf410f6196fe43685cfa796412427fa1f904a7a67e7",
         "copiedUnchanged": true
       },
       {

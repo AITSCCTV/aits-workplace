@@ -9,3 +9,19 @@ private-data/
 backend/dist/
 
 __pycache__/
+
+# Local credentials, private exports, and operational notes
+/private-docs/
+/security-reviews/
+openai-api.txt
+*service-account*.json
+*service_account*.json
+credentials.json
+client_secret*.json
+*.p12
+*.pfx
+*.key
+*.sqlite
+*.sqlite3
+*.db
+*.bundle
