@@ -22,3 +22,4 @@
 .aits-ui:not([data-aits-app=workplace]) :is(main>h1,.heading h1,.hero h1,.calhero h1,.intro-row h1,.content-studio header h1)::before{background:var(--accent)}
 .aits-ui :is(.metric>span svg,.tool-card>svg){color:var(--accent)}
 @media(max-width:650px){.aits-ui .aits-wordmark{justify-content:flex-start;padding-left:12px!important}.aits-ui .aits-mark{width:110px;height:73px}}
+.aits-line-icon{width:24px;height:24px;object-fit:contain;flex-shrink:0}.aits-ui .line-heading h1{display:flex;align-items:center;gap:10px}.line-heading .aits-line-icon{width:32px;height:32px}.line-empty-icon{width:48px;height:48px;object-fit:contain}
