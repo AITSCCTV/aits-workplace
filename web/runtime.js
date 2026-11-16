@@ -15,6 +15,7 @@
     const source=new Request(input,init);
     const headers=new Headers(source.headers);headers.set('Authorization','Bearer '+session.token);
     const response=await originalFetch(target,{method:source.method,headers,body:['GET','HEAD'].includes(source.method)?undefined:await source.arrayBuffer(),signal:source.signal,credentials:'omit',redirect:'error'});
+    if(window.AITS_I18N&&response.headers.get('content-type')?.includes('application/json'))try{window.AITS_I18N.protectData(await response.clone().json());}catch{}
     if(response.status===401){session=null;sessionStorage.removeItem(key);window.dispatchEvent(new Event('aits-auth-expired'));}
     return response;
   };

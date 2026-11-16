@@ -17,7 +17,7 @@ Additional routes: `/project-board/calendar/`, `/project-board/projects/`, `/pro
 
 ## Deployment status
 
-Backend deployed on 2026-11-16 at https://aits-workplace-api.aits-api.workers.dev with three isolated D1 databases and private R2 bucket. Owner-only Cloudflare Access login is configured for info@aitscctv.com; live browser verification is pending. The owner authorized existing paid-plan deployment and an account-wide $5 Workers usage limit, which is saved and enabled. D1/R2 and subscription fees are excluded, and enforcement delay can cause overshoot. No plan upgrades or payment actions are authorized. The private calendar snapshot (15 events) has been imported into protected D1 storage. Other source records and uploaded plans have not yet been migrated.
+Backend deployed on 2026-11-16 at https://aits-workplace-api.aits-api.workers.dev with three isolated D1 databases and private R2 bucket. Owner-only Cloudflare Access login is configured for info@aitscctv.com; authenticated calendar loading, inventory save/reload, and Design Studio cloud save/reopen have passed live browser verification; temporary test records were removed. The owner authorized existing paid-plan deployment and an account-wide $5 Workers usage limit, which is saved and enabled. D1/R2 and subscription fees are excluded, and enforcement delay can cause overshoot. No plan upgrades or payment actions are authorized. The private calendar snapshot (15 events) has been imported into protected D1 storage. Other source records and uploaded plans have not yet been migrated.
 
 ## Preservation and current limitations
 
@@ -49,3 +49,7 @@ For preview at the production base path, serve the parent of a directory called 
 The included GitHub Actions workflow builds and deploys on every push to `main`. Pages has been enabled through the owner’s existing browser session with **Source: GitHub Actions**. The CLI collaborator has Write access, not administrator access.
 
 See [Cloud migration and required connections](docs/CONNECTIONS.md). No payment or subscription upgrade is authorized by this repository.
+
+## Languages
+
+Thai is the default. The Thai / English toolbar is available on all nine routes and remembers the selection in this browser. Interface text, help, dialogs, and date formatting support English. Customer names and free-text records retain their original language; stored enum values are unchanged. Translation runs locally with no translation API or additional service cost.
