@@ -4,18 +4,19 @@ import {mkdir,readFile,writeFile,cp,rm} from 'node:fs/promises';
 import path from 'node:path';
 const out=path.resolve('dist'), generated=path.resolve('.build');
 const base=(process.env.PAGES_BASE_PATH||'/aits-workplace/').replace(/\/$/,'')+'/';
-if(!/^\/[a-zA-Z0-9/_-]*\/$/.test(base))throw Error('Invalid base path');
+if(base!=='/'&&!/^\/[a-zA-Z0-9/_-]*\/$/.test(base))throw Error('Invalid base path');
 await rm(out,{recursive:true,force:true}); await mkdir(out,{recursive:true}); await mkdir(generated,{recursive:true});
 const config=JSON.parse(await readFile('config/runtime.json','utf8'));
 const original={workplace:'https://aits-workplace.aitscctv.chatgpt.site',inventory:'https://aits-inventory.aitscctv.chatgpt.site','project-board':'https://aits-project-board.aitscctv.chatgpt.site','design-studio':'https://aits-design-studio.aitscctv.chatgpt.site'};
 const local={workplace:base,inventory:base+'inventory/','project-board':base+'project-board/','design-studio':base+'design-studio/'};
 function links(text){for(const key of Object.keys(original))text=text.replaceAll(original[key],local[key].replace(/\/$/,''));return text;}
+await cp('web/workspace.css',out+'/workspace.css');await cp('web/shell.js',out+'/shell.js');
 const runtime=await readFile('web/runtime.js','utf8');
 await writeFile(out+'/runtime.js',runtime);
 const english=JSON.parse(await readFile('web/i18n/en.json','utf8'));
 await writeFile(out+'/i18n.js','window.AITS_EN='+JSON.stringify(english).replaceAll('<','\\u003c')+';\n'+await readFile('web/i18n.js','utf8'));
 const assetVersion=(process.env.GITHUB_SHA||Date.now().toString()).replace(/[^a-zA-Z0-9]/g,'');
-function inject(html,app){if(!html.includes('<head>'))html=html.replace(/(<html[^>]*>)/i,'$1<head>').replace('<body>','</head><body>');return html.replace('<head>','<head><script>window.AITS_CONFIG='+JSON.stringify({app,base,apiOrigin:config.apiOrigins[app]||'',original:original[app]}).replaceAll('<','\\u003c')+';</script><script src="'+base+'i18n.js"></script><script src="'+base+'runtime.js"></script>').replace(/((?:src|href)="[^"]+\.(?:js|css))"/g,'$1?v='+assetVersion+'"');}
+function inject(html,app){if(!html.includes('<head>'))html=html.replace(/(<html[^>]*>)/i,'$1<head>').replace('<body>','</head><body>');return html.replace('</head>','<link rel="stylesheet" href="'+base+'workspace.css"><script defer src="'+base+'shell.js"></script></head>').replace('<head>','<head><script>window.AITS_CONFIG='+JSON.stringify({app,base,apiOrigin:config.apiOrigins[app]||'',original:original[app]}).replaceAll('<','\\u003c')+';</script><script src="'+base+'i18n.js"></script><script src="'+base+'runtime.js"></script>').replace(/((?:src|href)="[^"]+\.(?:js|css))"/g,'$1?v='+assetVersion+'"');}
 const locale=text=>text.replace(/(toLocale(?:DateString|TimeString|String)\()(['"])th-TH\2/g,'$1window.AITS_I18N.locale()').replace(/(Intl.DateTimeFormat\()(['"])th-TH\2/g,'$1window.AITS_I18N.locale()');
 await cp('sites/workplace/dist',out,{recursive:true});
 let hub=links(await readFile(out+'/index.html','utf8')).replace('● พื้นที่ทำงานส่วนตัว','AITS · GitHub Pages');
@@ -29,7 +30,8 @@ for(const [app,route,component] of routes){
  const id=app+'-'+(route.replaceAll('/','-')||'home');
  const entry=generated+'/'+id+'.tsx';
  await writeFile(entry,`import React,{Suspense,useEffect,useState} from 'react';import {createRoot} from 'react-dom/client';import Page from '../sites/${app}/${component}';import '../sites/${app}/app/globals.css';const routeParams=${route.startsWith('forms/')?'Promise.resolve({type:'+JSON.stringify(route.split('/')[1])+'})':'undefined'};function LocalizedPage(){const [,refresh]=useState(0);useEffect(()=>{const update=()=>refresh(n=>n+1);window.addEventListener('aits-language-change',update);return()=>window.removeEventListener('aits-language-change',update)},[]);return <Page${route.startsWith('forms/')?' params={routeParams}':''}/>;}createRoot(document.getElementById('app')!).render(<Suspense fallback={<p>กำลังโหลด…</p>}><LocalizedPage/></Suspense>);`);
- await build({entryPoints:[entry],outfile:out+'/assets/'+id+'.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022',plugins:[{name:'pages-links',setup(b){b.onLoad({filter:/\.(tsx|ts|mjs)$/},async args=>{if(!args.path.includes(path.sep+'sites'+path.sep))return;let contents=await readFile(args.path,'utf8');if(args.path.endsWith(path.join('calendar','page.tsx')))contents=calendarBuild(contents);contents=contents.replace(/href="\/(?!\/)([^"\n]*)"/g,(_,p)=>`href="${base}${app}/${p}${p&&!p.includes('#')&&!p.endsWith('/')?'/':''}"`);contents=contents.replace("href={'/forms/'+type}",`href={'${base}${app}/forms/'+type+'/'}`);return{contents:locale(links(contents)),loader:args.path.endsWith('.tsx')?'tsx':args.path.endsWith('.ts')?'ts':'js'};});}}]});
+ await build({entryPoints:[entry],outfile:out+'/assets/'+id+'.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022',plugins:[{name:'pages-links',setup(b){b.onLoad({filter:/\.(tsx|ts|mjs)$/},async args=>{if(!args.path.includes(path.sep+'sites'+path.sep))return;let contents=await readFile(args.path,'utf8');if(args.path.endsWith(path.join('calendar','page.tsx')))contents=calendarBuild(contents);
+if(args.path.endsWith(path.join('project-board','app','page.tsx')))contents=contents.replace('setTasks(d.tasks);','setTasks(d.tasks);const params=new URLSearchParams(location.search);if(params.has("task")||params.has("new")){const target=d.tasks.find(t=>t.id===params.get("task"));if(target)setEditing({...quoteFields,...target});else if(params.has("new"))setEditing({...blank});history.replaceState(null,"",location.pathname);}');contents=contents.replace(/href="\/(?!\/)([^"\n]*)"/g,(_,p)=>`href="${base}${app}/${p}${p&&!p.includes('#')&&!p.endsWith('/')?'/':''}"`);contents=contents.replace("href={'/forms/'+type}",`href={'${base}${app}/forms/'+type+'/'}`);return{contents:locale(links(contents)),loader:args.path.endsWith('.tsx')?'tsx':args.path.endsWith('.ts')?'ts':'js'};});}}]});
  const dir=out+'/'+app+'/'+route;await mkdir(dir,{recursive:true});
  const title=app==='inventory'?'AITS Inventory':'AITS Project Board';
  await writeFile(dir+'/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><link rel="stylesheet" href="${base}assets/${id}.css"></head><body><div id="app"></div><script type="module" src="${base}assets/${id}.js"></script></body></html>`,app));
@@ -41,3 +43,6 @@ console.log('Built all four interfaces and seven React routes at '+base);
 await build({entryPoints:['web/line.tsx'],outfile:out+'/assets/line.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/project-board/line',{recursive:true});
 await writeFile(out+'/project-board/line/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AITS LINE Archive</title><link rel="stylesheet" href="${base}assets/line.css"></head><body><div id="app"></div><script type="module" src="${base}assets/line.js"></script></body></html>`,'project-board'));
+
+await build({entryPoints:['web/dashboard.tsx'],outfile:out+'/assets/dashboard.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
+await writeFile(out+'/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f4f4ef"><title>AITS Workspace</title></head><body><div id="app"></div><script type="module" src="${base}assets/dashboard.js"></script></body></html>`,'workplace'));

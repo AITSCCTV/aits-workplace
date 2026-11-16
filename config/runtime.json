@@ -2,6 +2,7 @@
   "apiOrigins": {
     "inventory": "https://aits-workplace-api.aits-api.workers.dev/inventory",
     "project-board": "https://aits-workplace-api.aits-api.workers.dev/project-board",
-    "design-studio": "https://aits-workplace-api.aits-api.workers.dev/design-studio"
+    "design-studio": "https://aits-workplace-api.aits-api.workers.dev/design-studio",
+    "workplace": "https://aits-workplace-api.aits-api.workers.dev/project-board"
   }
 }
