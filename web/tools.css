@@ -29,3 +29,7 @@
 @media print{.aits-ui .tool-guide:not([open]){display:none}}
 
 .aits-ui:not([data-aits-app=workplace]) :is(main>h1,.heading h1,.hero h1,.calhero h1,.intro-row h1,.content-studio header h1)::before{content:'';display:inline-block;width:25px;height:25px;margin-right:12px;vertical-align:-2px;background:#657854;mask:var(--tool-icon) center/contain no-repeat;-webkit-mask:var(--tool-icon) center/contain no-repeat}
+
+/* Keep legacy tool navigation rules out of the shared sidebar. */
+.aits-ui .aits-sidebar{flex-wrap:nowrap!important;gap:0!important;align-items:stretch!important}.aits-ui .aits-sidebar>*{flex-shrink:0}.aits-ui .aits-sidebar .aits-nav-toggle{padding:6px!important}.aits-ui .aits-sidebar svg{flex-shrink:0}
+
