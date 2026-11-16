@@ -1,3 +1,4 @@
+import {passwordIdentity} from './passwords.mjs';
 import {hasTool} from './members.mjs';
 import {createRemoteJWKSet,jwtVerify} from 'jose';
 const keysets=new Map();
@@ -18,7 +19,7 @@ export async function authenticate(request,env,keys){
  const token=request.headers.get('Authorization')?.match(/^Bearer (\S+)$/)?.[1]||request.headers.get('cf-access-jwt-assertion');
  if(!token)throw new HttpError(401,'Please sign in to AITS.');
  let payload;
- try{
+ if(token.startsWith('aits_ws_')){payload=await passwordIdentity(token,env);}else try{
   if(!keys){if(!keysets.has(env.TEAM_DOMAIN))keysets.set(env.TEAM_DOMAIN,createRemoteJWKSet(new URL(env.TEAM_DOMAIN+'/cdn-cgi/access/certs')));keys=keysets.get(env.TEAM_DOMAIN);}
   ({payload}=await jwtVerify(token,keys,{issuer:env.TEAM_DOMAIN,audience:env.POLICY_AUD,algorithms:['RS256'],requiredClaims:['exp','iat','sub','email'],clockTolerance:5}));
  }catch{throw new HttpError(401,'Sign-in expired or invalid. Please sign in again.');}
@@ -26,10 +27,11 @@ export async function authenticate(request,env,keys){
  const email=payload.email.toLowerCase();
  const admins=(env.ADMIN_EMAILS||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
  const team=(env.TEAM_EMAILS||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
- const admin=admins.includes(email);
- const member=admin?null:await env.DB_PROJECT_BOARD.prepare('SELECT tools,enabled FROM workspace_members WHERE email=?').bind(email).first();
- if(!admin&&!(member?member.enabled:team.includes(email)))throw new HttpError(403,'This account is not authorized for AITS.');
- return {id:payload.sub,email,admin,token,tools:admin?[]:member?JSON.parse(member.tools):['forms']};
+ const owner=admins.includes(email);
+ const member=owner?null:await env.DB_PROJECT_BOARD.prepare('SELECT tools,enabled,role FROM workspace_members WHERE email=?').bind(email).first();
+ if(!owner&&!(member?member.enabled:team.includes(email)))throw new HttpError(403,'This account is not authorized for AITS.');
+ const admin=owner||member?.role==='admin';
+ return {id:owner?payload.sub:'workspace:'+email,email,admin,owner,role:owner?'owner':member?.role||'custom',token,tools:admin?[]:member?JSON.parse(member.tools):['forms'],sessionHash:payload.sessionHash,mustChangePassword:!!payload.mustChangePassword};
 }
 export function authorize(user,app,path,method){
  if(user.admin)return;

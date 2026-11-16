@@ -1,3 +1,4 @@
+import {passwordLogin,passwordApi,cleanSessions} from './passwords.mjs';
 import {membersApi,sessionInfo} from './members.mjs';
 import {studioIdentity} from './studio-access.mjs';
 import {studioGateway,floorplanGateway} from './studio-gateway.mjs';
@@ -22,7 +23,7 @@ async function limitedBody(request,limit){
  for(;;){const {done,value}=await reader.read();if(done)break;length+=value.length;if(length>limit){await reader.cancel();throw new HttpError(413,'Request is too large.');}chunks.push(value);}
  const bytes=new Uint8Array(length);let i=0;for(const c of chunks){bytes.set(c,i);i+=c.length;}return bytes;
 }
-export function createWorker(verify=authenticate){return {async scheduled(controller,env,ctx){ctx.waitUntil(Promise.allSettled([syncCalendars(env),scanLine(env)]));},async fetch(request,env){
+export function createWorker(verify=authenticate){return {async scheduled(controller,env,ctx){ctx.waitUntil(Promise.allSettled([syncCalendars(env),scanLine(env),cleanSessions(env)]));},async fetch(request,env){
  const url=new URL(request.url),origin=request.headers.get('Origin');
  const allowed=env.FRONTEND_ORIGIN==='https://aitscctv.github.io'?env.FRONTEND_ORIGIN:null;
  const cors=origin===allowed;
@@ -31,7 +32,11 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
   if(origin&&origin!==allowed&&origin!==url.origin)throw new HttpError(403,'Origin not allowed.');
   if(request.method==='OPTIONS'){if(!cors)throw new HttpError(403,'Origin not allowed.');return finish(new Response(null,{status:204}));}
   if(url.pathname==='/health'&&request.method==='GET')return finish(json({service:'aits-workplace-api',authenticationConfigured:!!env.POLICY_AUD}));
+  if(url.pathname==='/auth/options'&&request.method==='GET')return finish(json({password:env.PASSWORD_LOGIN_ENABLED==='true',google:env.GOOGLE_LOGIN_READY==='true'}));
+  if(url.pathname==='/auth/password/login'){const body=await limitedBody(request,4096);return finish(await passwordLogin(new Request(url.href,{method:request.method,headers:request.headers,body}),env));}
   const user=await verify(request,env);
+  if(user.mustChangePassword&&!['/auth/me','/auth/password/change','/auth/logout'].includes(url.pathname))throw new HttpError(403,'Change your temporary password before using the workspace.');
+  if(['/auth/password/change','/auth/logout','/project-board/api/member-password'].includes(url.pathname)){const body=await limitedBody(request,4096);return finish(await passwordApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
   if(url.pathname==='/auth/login'&&request.method==='GET'){
    const state=url.searchParams.get('state')||'';
    if(!/^[a-f0-9-]{36}$/.test(state)||!allowed)throw new HttpError(400,'Invalid login state.');

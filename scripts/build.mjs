@@ -10,13 +10,13 @@ const config=JSON.parse(await readFile('config/runtime.json','utf8'));
 const original={workplace:'https://aits-workplace.aitscctv.chatgpt.site',inventory:'https://aits-inventory.aitscctv.chatgpt.site','project-board':'https://aits-project-board.aitscctv.chatgpt.site','design-studio':'https://aits-design-studio.aitscctv.chatgpt.site'};
 const local={workplace:base,inventory:base+'inventory/','project-board':base+'project-board/','design-studio':base+'design-studio/'};
 function links(text){for(const key of Object.keys(original))text=text.replaceAll(original[key],local[key].replace(/\/$/,''));return text;}
-await cp('web/workspace.css',out+'/workspace.css');await cp('web/shell.js',out+'/shell.js');
+await cp('web/workspace.css',out+'/workspace.css');await cp('web/shell.js',out+'/shell.js');await cp('web/login.js',out+'/login.js');await cp('web/login.css',out+'/login.css');
 const runtime=await readFile('web/runtime.js','utf8');
 await writeFile(out+'/runtime.js',runtime);
 const english=JSON.parse(await readFile('web/i18n/en.json','utf8'));
 await writeFile(out+'/i18n.js','window.AITS_EN='+JSON.stringify(english).replaceAll('<','\\u003c')+';\n'+await readFile('web/i18n.js','utf8'));
 const assetVersion=(process.env.GITHUB_SHA||Date.now().toString()).replace(/[^a-zA-Z0-9]/g,'');
-function inject(html,app){if(!html.includes('<head>'))html=html.replace(/(<html[^>]*>)/i,'$1<head>').replace('<body>','</head><body>');return html.replace('</head>','<link rel="stylesheet" href="'+base+'workspace.css"><script defer src="'+base+'shell.js"></script></head>').replace('<head>','<head><script>window.AITS_CONFIG='+JSON.stringify({app,base,apiOrigin:config.apiOrigins[app]||'',original:original[app]}).replaceAll('<','\\u003c')+';</script><script src="'+base+'i18n.js"></script><script src="'+base+'runtime.js"></script>').replace(/((?:src|href)="[^"]+\.(?:js|css))(?:\?[^"]*)?"/g,'$1?v='+assetVersion+'"');}
+function inject(html,app){if(!html.includes('<head>'))html=html.replace(/(<html[^>]*>)/i,'$1<head>').replace('<body>','</head><body>');return html.replace('</head>','<link rel="stylesheet" href="'+base+'workspace.css"><script defer src="'+base+'shell.js"></script><link rel="stylesheet" href="'+base+'login.css"><script defer src="'+base+'login.js"></script></head>').replace('<head>','<head><script>window.AITS_CONFIG='+JSON.stringify({app,base,apiOrigin:config.apiOrigins[app]||'',original:original[app]}).replaceAll('<','\\u003c')+';</script><script src="'+base+'i18n.js"></script><script src="'+base+'runtime.js"></script>').replace(/((?:src|href)="[^"]+\.(?:js|css))(?:\?[^"]*)?"/g,'$1?v='+assetVersion+'"');}
 const locale=text=>text.replace(/(toLocale(?:DateString|TimeString|String)\()(['"])th-TH\2/g,'$1window.AITS_I18N.locale()').replace(/(Intl.DateTimeFormat\()(['"])th-TH\2/g,'$1window.AITS_I18N.locale()');
 await cp('sites/workplace/dist',out,{recursive:true});
 let hub=links(await readFile(out+'/index.html','utf8')).replace('● พื้นที่ทำงานส่วนตัว','AITS · GitHub Pages');

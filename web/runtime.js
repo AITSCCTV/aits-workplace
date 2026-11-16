@@ -8,6 +8,10 @@
   let identity=null;
   const account={signedIn:()=>!!session?.token,info:()=>identity,can:tool=>!!identity&&(identity.admin||identity.tools.includes(tool))};
   window.AITS_SESSION=account;
+  account.auth=async(path,data)=>{const response=await originalFetch(new URL(path,api),{method:'POST',headers:{'Content-Type':'application/json',...(session?.token?{Authorization:'Bearer '+session.token}:{})},body:JSON.stringify(data),credentials:'omit',redirect:'error'});const result=await response.json();if(!response.ok)throw Error(result.error||'Unable to sign in.');return result;};
+  account.accept=value=>{session={token:value.token,email:value.email};sessionStorage.setItem(key,JSON.stringify(session));location.reload();};
+  account.clear=()=>{session=null;sessionStorage.removeItem(key);location.reload();};
+  account.options=api?originalFetch(new URL('/auth/options',api),{credentials:'omit'}).then(r=>r.json()).catch(()=>({password:false,google:false})):Promise.resolve({password:false,google:false});
   account.ready=(async()=>{
     if(!session?.token||!api)return null;
     try{const r=await originalFetch(new URL('/auth/me',api),{headers:{Authorization:'Bearer '+session.token},credentials:'omit',redirect:'error'});
@@ -38,8 +42,8 @@
     const login=document.createElement('button');login.textContent='Sign in to AITS';login.type='button';
     const logout=document.createElement('button');logout.textContent='Sign out';logout.type='button';
     const refresh=()=>{status.textContent=api?(session?'AITS · '+session.email:'AITS · Sign in to read and save private records'):'GitHub Pages · Cloud not connected. '+(config.app==='design-studio'?'Local drawing and exports are available.':'Private records cannot yet be loaded or saved.');login.hidden=!api||!!session;logout.hidden=!session;};
-    logout.onclick=()=>{sessionStorage.removeItem(key);session=null;location.reload();};
-    login.onclick=()=>{
+    logout.onclick=async()=>{try{await account.auth('/auth/logout',{})}catch{}account.clear();};
+    account.googleLogin=()=>{
       const state=crypto.randomUUID(),url=new URL('/auth/login',api);url.searchParams.set('state',state);
       const popup=window.open(url,'aits-sign-in','popup,width=540,height=720');
       if(!popup){status.textContent='Please allow the sign-in popup.';return;}
@@ -52,6 +56,7 @@
       window.addEventListener('message',receive);
       const timeout=setTimeout(()=>{window.removeEventListener('message',receive);status.textContent='Sign-in timed out. Please try again.';},300000);
     };
+    login.onclick=()=>window.AITS_OPEN_LOGIN?window.AITS_OPEN_LOGIN():account.googleLogin();
     window.addEventListener('aits-auth-expired',refresh);window.addEventListener('aits-session-ready',refresh);bar.append(login,logout);
     const link=document.createElement('a');link.href=config.original;link.textContent='Open original Site';link.rel='noopener';link.target='_blank';bar.append(link);if(config.app==='project-board'){const archive=document.createElement('a');archive.href=config.base+'project-board/line/';archive.textContent='LINE · คลังข้อความ';bar.append(archive);}refresh();document.body.prepend(bar);
   });

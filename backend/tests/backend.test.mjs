@@ -10,10 +10,56 @@ import {readArchive} from '../line-archive.mjs';
 import {scanLine,suggestMessage,approveReview,reviewApi} from '../line-review.mjs';
 const origin='https://aitscctv.github.io';
 function database(files){const sql=new DatabaseSync(':memory:');for(const file of files)sql.exec(readFileSync(file,'utf8'));const wrap=(query,args=[])=>({bind(...values){return wrap(query,values)},async first(){return sql.prepare(query).get(...args)||null},async all(){return {results:sql.prepare(query).all(...args)}},async run(){return {meta:{changes:sql.prepare(query).run(...args).changes}}}});return {sql,prepare:query=>wrap(query),async batch(queries){sql.exec('BEGIN');try{const result=[];for(const q of queries)result.push(await q.run());sql.exec('COMMIT');return result}catch(e){sql.exec('ROLLBACK');throw e}}};}
-function environment(){const objects=new Map();return {FRONTEND_ORIGIN:origin,ADMIN_EMAILS:'info@aitscctv.com',TEAM_EMAILS:'team@example.com',TEAM_DOMAIN:'https://aits-test.cloudflareaccess.com',POLICY_AUD:'test-audience',DB_PROJECT_BOARD:database(['sites/project-board/drizzle/0000_flowery_the_professor.sql','sites/project-board/drizzle/0001_mute_silver_sable.sql','backend/migrations/calendar.sql','backend/migrations/sync.sql','backend/migrations/review.sql','backend/migrations/members.sql']),DB_INVENTORY:database(['sites/inventory/drizzle/0000_overrated_corsair.sql']),DB_DESIGN_STUDIO:database(['sites/design-studio/drizzle/0000_smiling_hobgoblin.sql']),BUCKET:{put:async(k,v)=>objects.set(k,v),get:async k=>objects.has(k)?{text:async()=>objects.get(k)}:null,delete:async k=>objects.delete(k)}};}
+function environment(){const objects=new Map();return {FRONTEND_ORIGIN:origin,ADMIN_EMAILS:'info@aitscctv.com',TEAM_EMAILS:'team@example.com',TEAM_DOMAIN:'https://aits-test.cloudflareaccess.com',POLICY_AUD:'test-audience',DB_PROJECT_BOARD:database(['sites/project-board/drizzle/0000_flowery_the_professor.sql','sites/project-board/drizzle/0001_mute_silver_sable.sql','backend/migrations/calendar.sql','backend/migrations/sync.sql','backend/migrations/review.sql','backend/migrations/members.sql','backend/migrations/accounts.sql']),DB_INVENTORY:database(['sites/inventory/drizzle/0000_overrated_corsair.sql']),DB_DESIGN_STUDIO:database(['sites/design-studio/drizzle/0000_smiling_hobgoblin.sql']),BUCKET:{put:async(k,v)=>objects.set(k,v),get:async k=>objects.has(k)?{text:async()=>objects.get(k)}:null,delete:async k=>objects.delete(k)}};}
 const req=(path,method='GET',body,extra={})=>new Request('https://api.example'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...extra},body:body===undefined?undefined:JSON.stringify(body)});
 const admin={id:'verified-owner',email:'info@aitscctv.com',admin:true,token:'signed-token'};
 const worker=createWorker(async()=>admin);
+
+test('password accounts require first-login change, preserve tool restrictions and revoke sessions on reset',async()=>{
+ const e=environment();e.PASSWORD_LOGIN_ENABLED='true';const email='engineer01@aits.local';
+ await worker.fetch(req('/project-board/api/members','POST',{email,role:'engineer',tools:['tasks'],enabled:true,revision:0}),e);
+ const reset=await worker.fetch(req('/project-board/api/member-password','POST',{email}),e);assert.equal(reset.status,200);const temporary=(await reset.json()).temporaryPassword;
+ assert.ok(temporary.length>=24);assert.equal(e.DB_PROJECT_BOARD.sql.prepare('SELECT hash FROM workspace_passwords').get().hash.includes(temporary),false);
+ const live=createWorker();const login=await live.fetch(req('/auth/password/login','POST',{email,password:temporary}),e);assert.equal(login.status,200);const initial=await login.json();assert.equal(initial.mustChangePassword,true);
+ const headers={Authorization:'Bearer '+initial.token};
+ assert.equal((await live.fetch(req('/project-board/api/tasks','GET',undefined,headers),e)).status,403);
+ assert.equal((await live.fetch(req('/auth/studio/floorplan','GET',undefined,headers),e)).status,403);
+ assert.equal((await live.fetch(req('/auth/password/change','POST',{currentPassword:temporary,password:'short'},headers),e)).status,400);
+ const password='Unique test password only 7932!';
+ assert.equal((await live.fetch(req('/auth/password/change','POST',{currentPassword:temporary,password},headers),e)).status,200);
+ assert.equal((await live.fetch(req('/auth/me','GET',undefined,headers),e)).status,401);
+ const signed=await(await live.fetch(req('/auth/password/login','POST',{email,password}),e)).json();assert.equal(signed.mustChangePassword,false);
+ const finalHeaders={Authorization:'Bearer '+signed.token};
+ assert.equal((await live.fetch(req('/project-board/api/tasks','GET',undefined,finalHeaders),e)).status,200);
+ assert.equal((await live.fetch(req('/project-board/api/projects','GET',undefined,finalHeaders),e)).status,403);
+ const identity=await authenticate(req('/auth/me','GET',undefined,finalHeaders),e);assert.equal(identity.id,'workspace:'+email);assert.equal(identity.role,'engineer');
+ assert.equal((await live.fetch(req('/auth/logout','POST',{},finalHeaders),e)).status,200);
+ assert.equal((await live.fetch(req('/auth/me','GET',undefined,finalHeaders),e)).status,401);
+ const another=await(await live.fetch(req('/auth/password/login','POST',{email,password}),e)).json();
+ await worker.fetch(req('/project-board/api/member-password','POST',{email}),e);
+ assert.equal((await live.fetch(req('/auth/me','GET',undefined,{Authorization:'Bearer '+another.token}),e)).status,401);
+ assert.equal((await live.fetch(req('/auth/password/login','POST',{email,password}),e)).status,401);
+});
+
+test('password login rate limits unknown accounts and expired temporary passwords fail closed',async()=>{
+ const e=environment();e.PASSWORD_LOGIN_ENABLED='true';const live=createWorker(),email='unknown@aits.local';
+ for(let i=0;i<5;i++)assert.equal((await live.fetch(req('/auth/password/login','POST',{email,password:'wrong'}),e)).status,401);
+ assert.equal((await live.fetch(req('/auth/password/login','POST',{email,password:'wrong'}),e)).status,429);
+ await worker.fetch(req('/project-board/api/members','POST',{email:'expired@aits.local',role:'custom',tools:[],enabled:true,revision:0}),e);
+ const temporary=(await(await worker.fetch(req('/project-board/api/member-password','POST',{email:'expired@aits.local'}),e)).json()).temporaryPassword;
+ e.DB_PROJECT_BOARD.sql.exec('UPDATE workspace_passwords SET temporary_expires=0');
+ assert.equal((await live.fetch(req('/auth/password/login','POST',{email:'expired@aits.local',password:temporary}),e)).status,401);
+});
+
+test('only owners appoint admins; delegated admins cannot edit admins, themselves or reset their passwords',async()=>{
+ const e=environment(),email='admin@aits.local';
+ assert.equal((await worker.fetch(req('/project-board/api/members','POST',{email,role:'admin',tools:[],enabled:true,revision:0}),e)).status,200);
+ const delegated=createWorker(async()=>({...admin,email,owner:false,role:'admin'}));
+ for(const target of [email,'other@aits.local'])assert.equal((await delegated.fetch(req('/project-board/api/members','POST',{email:target,role:'admin',tools:[],enabled:true,revision:target===email?1:0}),e)).status,403);
+ assert.equal((await delegated.fetch(req('/project-board/api/members','POST',{email,role:'custom',tools:[],enabled:true,revision:1}),e)).status,403);
+ assert.equal((await delegated.fetch(req('/project-board/api/member-password','POST',{email}),e)).status,403);
+ assert.equal((await delegated.fetch(req('/project-board/api/members','POST',{email:'employee@aits.local',role:'engineer',tools:['tasks'],enabled:true,revision:0}),e)).status,200);
+});
 
 test('owner manages access with validation, protected owner, revision conflicts and transactional audit',async()=>{
  const e=environment(),path='/project-board/api/members',input={email:' Employee@Example.com ',tools:['calendar'],enabled:true,revision:0};

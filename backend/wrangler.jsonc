@@ -9,7 +9,7 @@
   "workers_dev": true,
   "preview_urls": false,
   "limits": {
-    "cpu_ms": 50
+    "cpu_ms": 700
   },
   "d1_databases": [
     {
@@ -44,7 +44,8 @@
     "TEAM_DOMAIN": "https://solitary-night-1767.cloudflareaccess.com",
     "POLICY_AUD": "72f67e633ac9c1aaeaee8df92899bbf54bce807651065a9f0b629d6454417e80",
     "ADMIN_EMAILS": "info@aitscctv.com",
-    "TEAM_EMAILS": ""
+    "TEAM_EMAILS": "",
+    "PASSWORD_LOGIN_ENABLED": "true"
   },
   "triggers": {
     "crons": [
