@@ -1,3 +1,4 @@
+import {lineChat} from './line-chat.mjs';
 import {passwordLogin,passwordApi,cleanSessions} from './passwords.mjs';
 import {membersApi,sessionInfo} from './members.mjs';
 import {studioIdentity} from './studio-access.mjs';
@@ -80,6 +81,7 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
     const sync=await db.prepare("SELECT status,attempted_at,success_at,error_code FROM sync_status WHERE id='calendar'").first();
     return json({...JSON.parse(row.data),sync});
    }
+   if(app==='project-board'&&path==='/api/line/chat')return lineChat(internal,env,user);
    if(app==='project-board'&&path==='/api/line')return readArchive(internal,env);
    if(app==='project-board'&&path==='/api/review')return reviewApi(internal,env,user);
    if(app==='project-board'&&path==='/api/sync-calendar'){

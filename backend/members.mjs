@@ -2,7 +2,7 @@ import {rolePresets} from './roles.mjs';
 import {HttpError} from './auth.mjs';
 export const toolsCatalog=[
  ['tasks','บอร์ดงาน','Task board',[]],['projects','โครงการ','Projects',[]],
- ['calendar','ปฏิทิน','Calendar',[]],['line','บทสนทนา LINE','LINE archive',[]],
+ ['calendar','ปฏิทิน','Calendar',[]],['line','บทสนทนา LINE','LINE conversations',[]],['line-send','ตอบกลับ LINE','Reply to LINE',['line']],
  ['review','ตรวจและอนุมัติข้อเสนอ LINE','Review and apply LINE suggestions',['tasks','projects','line']],
  ['design-studio','สตูดิโอออกแบบ','Design Studio',[]],
  ['floorplan-studio','สตูดิโอแปลน','Floorplan Studio',[]],
