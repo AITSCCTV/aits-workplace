@@ -1,6 +1,7 @@
 import {calendarBuild} from '../web/calendar-build.mjs';
+import {toolPresentation} from './tool-presentation.mjs';
 import {build} from 'esbuild';
-import {mkdir,readFile,writeFile,cp,rm} from 'node:fs/promises';
+import {mkdir,readFile,writeFile,cp,rm,readdir} from 'node:fs/promises';
 import path from 'node:path';
 const out=path.resolve('dist'), generated=path.resolve('.build');
 const base=(process.env.PAGES_BASE_PATH||'/aits-workplace/').replace(/\/$/,'')+'/';
@@ -31,7 +32,7 @@ for(const [app,route,component] of routes){
  const entry=generated+'/'+id+'.tsx';
  await writeFile(entry,`import React,{Suspense,useEffect,useState} from 'react';import {createRoot} from 'react-dom/client';import Page from '../sites/${app}/${component}';import '../sites/${app}/app/globals.css';const routeParams=${route.startsWith('forms/')?'Promise.resolve({type:'+JSON.stringify(route.split('/')[1])+'})':'undefined'};function LocalizedPage(){const [,refresh]=useState(0);useEffect(()=>{const update=()=>refresh(n=>n+1);window.addEventListener('aits-language-change',update);return()=>window.removeEventListener('aits-language-change',update)},[]);return <Page${route.startsWith('forms/')?' params={routeParams}':''}/>;}createRoot(document.getElementById('app')!).render(<Suspense fallback={<p>กำลังโหลด…</p>}><LocalizedPage/></Suspense>);`);
  await build({entryPoints:[entry],outfile:out+'/assets/'+id+'.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022',plugins:[{name:'pages-links',setup(b){b.onLoad({filter:/\.(tsx|ts|mjs)$/},async args=>{if(!args.path.includes(path.sep+'sites'+path.sep))return;let contents=await readFile(args.path,'utf8');if(args.path.endsWith(path.join('calendar','page.tsx'))){contents=calendarBuild(contents);contents=contents.replace("fetch('/api/tasks')","window.AITS_SESSION.ready.then(()=>window.AITS_SESSION.can('tasks')?fetch('/api/tasks'):Response.json({tasks:[]}))");}
-if(args.path.endsWith(path.join('project-board','app','page.tsx')))contents=contents.replace('setTasks(d.tasks);','setTasks(d.tasks);const params=new URLSearchParams(location.search);if(params.has("task")||params.has("new")){const target=d.tasks.find(t=>t.id===params.get("task"));if(target)setEditing({...quoteFields,...target});else if(params.has("new"))setEditing({...blank});history.replaceState(null,"",location.pathname);}');contents=contents.replace(/href="\/(?!\/)([^"\n]*)"/g,(_,p)=>`href="${base}${app}/${p}${p&&!p.includes('#')&&!p.endsWith('/')?'/':''}"`);contents=contents.replace("href={'/forms/'+type}",`href={'${base}${app}/forms/'+type+'/'}`);return{contents:locale(links(contents)),loader:args.path.endsWith('.tsx')?'tsx':args.path.endsWith('.ts')?'ts':'js'};});}}]});
+if(args.path.endsWith(path.join('project-board','app','page.tsx')))contents=contents.replace('setTasks(d.tasks);','setTasks(d.tasks);const params=new URLSearchParams(location.search);if(params.has("task")||params.has("new")){const target=d.tasks.find(t=>t.id===params.get("task"));if(target)setEditing({...quoteFields,...target});else if(params.has("new"))setEditing({...blank});history.replaceState(null,"",location.pathname);}');contents=contents.replace(/href="\/(?!\/)([^"\n]*)"/g,(_,p)=>`href="${base}${app}/${p}${p&&!p.includes('#')&&!p.endsWith('/')?'/':''}"`);contents=contents.replace("href={'/forms/'+type}",`href={'${base}${app}/forms/'+type+'/'}`);return{contents:locale(links(toolPresentation(contents))),loader:args.path.endsWith('.tsx')?'tsx':args.path.endsWith('.ts')?'ts':'js'};});}}]});
  const dir=out+'/'+app+'/'+route;await mkdir(dir,{recursive:true});
  const title=app==='inventory'?'AITS Inventory':'AITS Project Board';
  await writeFile(dir+'/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><link rel="stylesheet" href="${base}assets/${id}.css"></head><body><div id="app"></div><script type="module" src="${base}assets/${id}.js"></script></body></html>`,app));
@@ -62,6 +63,7 @@ for(const name of ['index.html','app.js','browser-preview.js','service-connectio
 }
 let floor=await readFile(out+'/floorplan-studio/static/index.html','utf8');
 floor=floor.replace('<div class="shell">','<div class="shell" data-no-translate>');
+floor=floor.replace('Plan it before you install it.','Floorplan Studio').replace('<p class="intro-copy">Upload a floor plan, describe the site, and build a clear first-pass device layout.</p>','');
 floor=inject(floor,'floorplan-studio').replace('</head>','<link rel="stylesheet" href="'+base+'studios.css?v='+assetVersion+'"></head>');
 await writeFile(out+'/floorplan-studio/index.html',floor);
 await build({entryPoints:['web/content.tsx'],outfile:out+'/assets/content.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
@@ -71,3 +73,8 @@ await writeFile(out+'/content-studio/index.html',inject(`<!doctype html><html la
 await build({entryPoints:['web/admin.tsx'],outfile:out+'/assets/admin.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/admin',{recursive:true});
 await writeFile(out+'/admin/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Employee access · AITS</title><link rel="stylesheet" href="${base}assets/admin.css"></head><body><div id="app"></div><script type="module" src="${base}assets/admin.js"></script></body></html>`,'workplace'));
+
+// Load the shared tool treatment last, after each independent tool stylesheet.
+await cp('web/tools.css',out+'/tools.css');
+async function finishToolStyles(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory())await finishToolStyles(file);else if(entry.name.endsWith('.html')){const html=await readFile(file,'utf8');await writeFile(file,html.replace('</head>','<link rel="stylesheet" href="'+base+'tools.css?v='+assetVersion+'"></head>'));}}}
+await finishToolStyles(out);

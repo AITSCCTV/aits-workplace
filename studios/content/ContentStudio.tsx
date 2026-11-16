@@ -285,11 +285,7 @@ export default function ContentStudio() {
               <div className="eyebrow">
                 {t("AITSCCTV / คอนเทนต์และโอกาสการขาย")}
               </div>
-              <h1>
-                {t("จากประเด็นวันนี้")} <br className="mobile" />
-                {t("สู่บทสนทนากับลูกค้า")}
-                <span>.</span>
-              </h1>
+              <h1>Content Studio</h1>
               <p>
                 {t(
                   "ตรวจทานข้อความและภาพ แล้วเผยแพร่ไปยัง Facebook และ Instagram",
