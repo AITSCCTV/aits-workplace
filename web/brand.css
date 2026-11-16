@@ -1,0 +1,24 @@
+/* AITS identity: company red, near-black, white, and cool gray. */
+:root,.aits-ui,.aits-ui[data-aits-app=floorplan-studio]{--paper:#fafafa;--surface:#fff;--ink:#191b20;--muted:#626873;--line:#e3e5e9;--wash:#f3f4f6;--accent:#bb202b;--accent-light:#fceef0;--navy:#f3f4f6;--navy2:#e9ebef;--canvas:#f3f4f6;--blue:#bb202b;--blue2:#971b25;--aqua:#697586}
+.aits-ui .content-studio{--aits-red:#bb202b;--aits-red-bright:#bb202b;--aits-red-hover:#971b25;--aits-red-soft:#fceef0;--aits-black:#191b20;--aits-charcoal:#191b20;--light-gray:#fafafa;--dark-gray:#343841;--medium-gray:#626873;--text-muted:#626873;--border-gray:#e3e5e9;--border-color:#e3e5e9}
+.aits-ui .aits-wordmark{justify-content:center;padding-inline:0!important}
+.aits-ui .aits-wordmark>span{display:none!important}
+.aits-ui .aits-mark{width:68px;height:46px;object-fit:contain}
+.aits-ui.aits-nav-expanded .aits-mark{width:136px;height:90px}
+.aits-ui .aits-sidebar{background:#f5f6f8}
+.aits-ui .aits-nav-list a,.aits-ui .aits-sidebar-bottom>a{color:#626873}
+.aits-ui .aits-nav-list a[aria-current=page],.aits-ui .content-studio .nav.active,.aits-ui .content-studio .nav.is-active{background:var(--accent-light)!important;color:var(--accent)!important}
+.aits-ui :is(.primary,button.primary,.btn-primary,.progress-save,.action-dark,.aits-login-submit),.aits-ui[data-aits-app=floorplan-studio] :is(#journeyNext,#reportBtn,.journey-step-number){background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
+.aits-ui :is(.primary,.btn-primary,.action-dark,.aits-login-submit):hover{background:#971b25!important;border-color:#971b25!important}
+.aits-ui :is(button,a,input,select,textarea,summary):focus-visible{outline-color:var(--accent)!important}
+.aits-ui :is(input[type=checkbox],input[type=radio],input[type=range]){accent-color:var(--accent)}
+.aits-ui .view-tabs button[aria-pressed=true]{border-bottom-color:var(--accent);color:var(--accent)}
+.aits-ui :is(.tool-guide,.notice,.note,.calnotice,.weekday,.filter-panel){background:#f3f4f6;color:#626873;border-color:#e3e5e9}
+.aits-ui .tool-guide summary{color:#343841}
+.aits-ui .content-studio .approval{background:#f3f4f6!important;border-color:#e3e5e9!important}
+.aits-ui[data-aits-app=design-studio] .tools button.active,.aits-ui[data-aits-app=inventory] main>nav button.active,.aits-ui[data-aits-app=floorplan-studio] :is(.journey-tab.active,.journey-steps button.is-current,.source-mode button.active){background:var(--accent-light)!important;color:var(--accent)!important;border-color:#e8aeb3!important}
+.aits-ui[data-aits-app=floorplan-studio] .journey-steps button.is-current span{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
+.aits-ui .calday.selected{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.aits-ui:not([data-aits-app=workplace]) :is(main>h1,.heading h1,.hero h1,.calhero h1,.intro-row h1,.content-studio header h1)::before{background:var(--accent)}
+.aits-ui :is(.metric>span svg,.tool-card>svg){color:var(--accent)}
+@media(max-width:650px){.aits-ui .aits-wordmark{justify-content:flex-start;padding-left:12px!important}.aits-ui .aits-mark{width:110px;height:73px}}
