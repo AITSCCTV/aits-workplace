@@ -1,0 +1,3 @@
+export function validDate(s:string){const d=new Date(s+'T00:00:00Z');return /^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===s}
+export function expiryDate(start:string,years:string){if(!start||!years||!validDate(start)||!/^\d+$/.test(years))return '';const n=Number(years);if(n<1||n>50)return '';const [y,m,d]=start.split('-').map(Number);const last=new Date(Date.UTC(y+n,m,0)).getUTCDate();return new Date(Date.UTC(y+n,m-1,Math.min(d,last))).toISOString().slice(0,10)}
+export function daysRemaining(end:string,today:string){return end?Math.round((Date.parse(end+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/86400000):null}

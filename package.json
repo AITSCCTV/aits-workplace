@@ -1,0 +1,6 @@
+{
+  "name": "aits-workplace", "version": "1.0.0", "private": true, "type": "module",
+  "scripts": {"build": "node scripts/build.mjs", "test": "node --test tests/migration.test.mjs", "preview": "python -m http.server 4173 --directory dist"},
+  "dependencies": {"react": "19.2.6", "react-dom": "19.2.6"},
+  "devDependencies": {"esbuild": "0.25.12"}
+}

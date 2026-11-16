@@ -1,0 +1,4 @@
+import {listProjects,saveProject,history} from '../../../lib/progress-store';
+export const dynamic='force-dynamic';
+export async function GET(r:Request){const id=new URL(r.url).searchParams.get('history');return Response.json(id?{history:await history(id)}:{projects:await listProjects(),asOf:new Date().toISOString()},{headers:{'Cache-Control':'no-store'}})}
+export async function POST(r:Request){if(r.headers.get('origin')&&r.headers.get('origin')!==new URL(r.url).origin)return new Response('Forbidden',{status:403});try{if(Number(r.headers.get('content-length'))>500000)throw Error('ข้อมูลมีขนาดใหญ่เกินไป');const raw=await r.text();if(raw.length>500000)throw Error('ข้อมูลมีขนาดใหญ่เกินไป');return Response.json({project:await saveProject(JSON.parse(raw))});}catch(e:any){return Response.json({error:e.message||'บันทึกไม่สำเร็จ'},{status:400})}}

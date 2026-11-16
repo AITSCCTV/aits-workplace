@@ -1,0 +1,12 @@
+import {env} from 'cloudflare:workers';
+import {validDate,expiryDate} from './warranty-utils';
+async function init(){await env.DB.prepare('CREATE TABLE IF NOT EXISTS warranties(id TEXT PRIMARY KEY,data TEXT NOT NULL,revision INTEGER NOT NULL,updated TEXT NOT NULL)').run()}
+export async function listWarranties(){await init();const r=await env.DB.prepare('SELECT * FROM warranties ORDER BY updated DESC').all();return r.results.map((x:any)=>({...JSON.parse(x.data),id:x.id,revision:x.revision,updated:x.updated}))}
+export async function saveWarranty(input:any){await init();if(!input.customer?.trim()||!input.system?.trim())throw Error('กรุณาระบุลูกค้าและระบบ');const id=input.id||crypto.randomUUID();const old:any=await env.DB.prepare('SELECT * FROM warranties WHERE id=?').bind(id).first();if(old&&input.revision!==old.revision)throw Error('ข้อมูลเปลี่ยนแล้ว กรุณารีเฟรช');const data:any={};for(const k of ['customer','projectId','system','coverage','durationYears','startDate','startBasis','expiryOverride','contactName','phone','address','location','source','evidence'])data[k]=typeof input[k]==='string'?input[k].trim().slice(0,k==='evidence'?12000:3000):'';
+for(const k of ['startDate','expiryOverride'])if(data[k]&&!validDate(data[k]))throw Error('วันที่ไม่ถูกต้อง');
+if(data.durationYears&&(!/^\d+$/.test(data.durationYears)||Number(data.durationYears)<1||Number(data.durationYears)>50))throw Error('ระยะประกันต้องเป็นจำนวนเต็ม 1–50 ปี');
+if(data.startDate&&!data.startBasis)throw Error('ระบุฐานการเริ่มประกัน เช่น วันตรวจรับตามสัญญา');
+if((data.startDate||data.durationYears||data.expiryOverride)&&!data.evidence)throw Error('ระบุหลักฐานยืนยันเงื่อนไขประกัน');
+if(data.source&&!/^https:\/\//.test(data.source))throw Error('ลิงก์ต้องเป็น HTTPS');if(data.location&&!/^https:\/\//.test(data.location))throw Error('โลเคชันต้องเป็นลิงก์ HTTPS');
+data.calculatedExpiry=expiryDate(data.startDate,data.durationYears);data.expiry=data.expiryOverride||data.calculatedExpiry;if(data.expiry&&data.startDate&&data.expiry<data.startDate)throw Error('วันหมดอายุต้องไม่ก่อนวันเริ่ม');
+const revision=(old?.revision||0)+1,updated=new Date().toISOString();const q=old?env.DB.prepare('UPDATE warranties SET data=?,revision=?,updated=? WHERE id=? AND revision=?').bind(JSON.stringify(data),revision,updated,id,old.revision):env.DB.prepare('INSERT INTO warranties VALUES(?,?,?,?)').bind(id,JSON.stringify(data),revision,updated);const r=await q.run();if(r.meta.changes!==1)throw Error('ข้อมูลเปลี่ยนระหว่างบันทึก');return {...data,id,revision,updated}}
