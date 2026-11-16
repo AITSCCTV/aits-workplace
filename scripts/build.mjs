@@ -50,3 +50,18 @@ await writeFile(out+'/index.html',inject(`<!doctype html><html lang="th"><head><
 await build({entryPoints:['web/review.tsx'],outfile:out+'/assets/review.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/project-board/review',{recursive:true});
 await writeFile(out+'/project-board/review/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AITS Review Queue</title></head><body><div id="app"></div><script type="module" src="${base}assets/review.js"></script></body></html>`,'project-board'));
+
+// Independent Studio routes use the shared shell, retaining their established engines.
+await cp('web/studios.css',out+'/studios.css');
+await cp('studios/floorplan/static',out+'/floorplan-studio/static',{recursive:true});
+for(const name of ['index.html','app.js','browser-preview.js','service-connection.js','drawing-pack.js','site-photos.js']){
+ const target=out+'/floorplan-studio/static/'+name;
+ let source=await readFile(target,'utf8');source=source.replaceAll('/static/',base+'floorplan-studio/static/');await writeFile(target,source);
+}
+let floor=await readFile(out+'/floorplan-studio/static/index.html','utf8');
+floor=floor.replace('<div class="shell">','<div class="shell" data-no-translate>');
+floor=inject(floor,'floorplan-studio').replace('</head>','<link rel="stylesheet" href="'+base+'studios.css?v='+assetVersion+'"></head>');
+await writeFile(out+'/floorplan-studio/index.html',floor);
+await build({entryPoints:['web/content.tsx'],outfile:out+'/assets/content.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
+await mkdir(out+'/content-studio',{recursive:true});
+await writeFile(out+'/content-studio/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AITS Content Studio</title><link rel="stylesheet" href="${base}assets/content.css"></head><body><div id="app"></div><script type="module" src="${base}assets/content.js"></script></body></html>`,'content-studio').replace('</head>','<link rel="stylesheet" href="'+base+'studios.css?v='+assetVersion+'"></head>'));

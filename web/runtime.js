@@ -20,6 +20,7 @@
     return response;
   };
   document.addEventListener('DOMContentLoaded',()=>{
+    if(config.app==='floorplan-studio')return;
 
     const bar=document.createElement('aside');bar.className='workspace-account';bar.setAttribute('role','status');
     bar.style.cssText='padding:12px 20px;background:#fff4df;color:#4e3713;border-bottom:1px solid #e4c684;font:15px/1.6 system-ui,sans-serif;display:flex;gap:12px;flex-wrap:wrap;align-items:center';

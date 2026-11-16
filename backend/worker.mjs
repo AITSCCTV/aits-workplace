@@ -1,3 +1,4 @@
+import {studioGateway} from './studio-gateway.mjs';
 import {runWithContext} from './context.mjs';
 import {authenticate,authorize,HttpError} from './auth.mjs';
 import {syncCalendars} from './calendar-sync.mjs';
@@ -23,7 +24,7 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
  const url=new URL(request.url),origin=request.headers.get('Origin');
  const allowed=env.FRONTEND_ORIGIN==='https://aitscctv.github.io'?env.FRONTEND_ORIGIN:null;
  const cors=origin===allowed;
- const finish=response=>{const h=new Headers(response.headers);h.set('Cache-Control','no-store');h.set('X-Content-Type-Options','nosniff');h.set('Referrer-Policy','no-referrer');h.set('Vary','Origin');if(cors){h.set('Access-Control-Allow-Origin',allowed);h.set('Access-Control-Allow-Methods','GET, POST, PUT, OPTIONS');h.set('Access-Control-Allow-Headers','Authorization, Content-Type');}return new Response(response.body,{status:response.status,headers:h});};
+ const finish=response=>{const h=new Headers(response.headers);h.set('Cache-Control','no-store');h.set('X-Content-Type-Options','nosniff');h.set('Referrer-Policy','no-referrer');h.set('Vary','Origin');if(cors){h.set('Access-Control-Allow-Origin',allowed);h.set('Access-Control-Allow-Methods','GET, POST, PUT, OPTIONS');h.set('Access-Control-Allow-Headers','Authorization, Content-Type, X-AITS-Staff-Token');}return new Response(response.body,{status:response.status,headers:h});};
  try{
   if(origin&&origin!==allowed&&origin!==url.origin)throw new HttpError(403,'Origin not allowed.');
   if(request.method==='OPTIONS'){if(!cors)throw new HttpError(403,'Origin not allowed.');return finish(new Response(null,{status:204}));}
@@ -54,6 +55,7 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
   const bindings={...env,DB:db,BUCKET:env.BUCKET};
   const response=await runWithContext({env:bindings,request:internal},async()=>{
    if(app==='design-studio')return plans(internal,bindings);
+   if(app==='project-board'&&path.startsWith('/api/staff/'))return studioGateway(new Request(url.href,{method:request.method,headers,body}));
    if(app==='project-board'&&path==='/api/calendar'){
     if(request.method!=='GET')throw new HttpError(405,'Read-only calendar.');
     const row=await db.prepare('SELECT data FROM calendar_snapshot WHERE id=1').first();
