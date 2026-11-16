@@ -1,6 +1,6 @@
 # Overview assistant
 
-Home includes an OpenAI `gpt-5.4-mini` assistant (low reasoning, Responses API, `store:false`). The API key is a Cloudflare secret and never included in Pages. Company context is selected by permission-filtered, parameterized searches. LINE is strictly read-only to the assistant; it has no messaging tool or access to channel credentials.
+The dedicated AI Assistant tab above Home includes an OpenAI `gpt-5.4-mini` assistant (low reasoning, Responses API, `store:false`). The API key is a Cloudflare secret and never included in Pages. Company context is selected by permission-filtered, parameterized searches. LINE is strictly read-only to the assistant; it has no messaging tool or access to channel credentials.
 
 The Admin tool catalogue has separate grants for AI assistant, customer records, prices, quotations and calendar event creation. Existing employees receive no automatic new grants. Each source still requires its corresponding tool grant. Answers/history/proposals are private to their author and current permission set. Last three answers provide conversation context; company facts must be searched again. Sources are bounded and freshness is disclosed. AI summaries require human verification.
 
@@ -13,3 +13,5 @@ Reports download real DOCX, PDF and XLSX files in the browser; PDF embeds licens
 Deploy: apply backend/migrations/assistant.sql to the project-board D1 database, set OPENAI_API_KEY with Wrangler secret put, build/deploy the API and publish Pages. `ASSISTANT_CALENDAR_WRITE_ENABLED` must be true only after granting the service account event editing access. No additional cloud service is provisioned.
 
 Validation: backend/tests/assistant.test.mjs exercises permission isolation, no LINE writes, quota reservation, genuine catalogue pricing, approval idempotency/audit, history isolation, provider request limits, calendar conflicts/privacy and duplicate prevention. Existing migration and backend suites remain required.
+
+Chat UI: `/assistant/` provides new conversations, searchable saved history, and per-conversation context. Apply `backend/migrations/assistant-chats.sql` after the base assistant migration. Existing turns are preserved as the legacy conversation. History displays the latest 100 conversations and latest 100 turns per selected conversation; stored records are retained. Conversations remain scoped to author and current permissions.

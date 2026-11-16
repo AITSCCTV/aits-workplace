@@ -81,3 +81,8 @@ await cp('web/brand.css',out+'/brand.css');
 async function finishToolStyles(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory())await finishToolStyles(file);else if(entry.name.endsWith('.html')){const html=await readFile(file,'utf8');await writeFile(file,html.replace('</head>','<link rel="stylesheet" href="'+base+'tools.css?v='+assetVersion+'"><link rel="stylesheet" href="'+base+'brand.css?v='+assetVersion+'"><link rel="icon" type="image/png" href="'+base+'brand/aits-company-logo.png"></head>'));}}}
 await finishToolStyles(out);
 await build({entryPoints:['web/assistant-export.ts'],outfile:out+'/assets/assistant-export.js',bundle:true,minify:true,format:'esm',platform:'browser',target:'es2022'});
+
+await build({entryPoints:['web/assistant-page.tsx'],outfile:out+'/assets/assistant-page.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
+await mkdir(out+'/assistant',{recursive:true});
+await writeFile(out+'/assistant/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AITS AI Assistant</title><link rel="stylesheet" href="${base}tools.css?v=${assetVersion}"><link rel="stylesheet" href="${base}brand.css?v=${assetVersion}"><link rel="stylesheet" href="${base}assistant.css?v=${assetVersion}"></head><body><div id="app"></div><script type="module" src="${base}assets/assistant-page.js"></script></body></html>`,'workplace'));
+await cp('web/assistant.css',out+'/assistant.css');
