@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS calendar_snapshot (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL);

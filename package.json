@@ -1,6 +1,21 @@
 {
-  "name": "aits-workplace", "version": "1.0.0", "private": true, "type": "module",
-  "scripts": {"build": "node scripts/build.mjs", "test": "node --test tests/migration.test.mjs", "preview": "python -m http.server 4173 --directory dist"},
-  "dependencies": {"react": "19.2.6", "react-dom": "19.2.6"},
-  "devDependencies": {"esbuild": "0.25.12"}
+  "name": "aits-workplace",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/migration.test.mjs",
+    "preview": "python -m http.server 4173 --directory dist",
+    "build:backend": "node scripts/build-backend.mjs",
+    "test:backend": "npm run build:backend && node --test backend/tests/backend.test.mjs"
+  },
+  "dependencies": {
+    "jose": "^6.2.17",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
 }

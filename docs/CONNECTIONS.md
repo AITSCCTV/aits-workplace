@@ -7,6 +7,12 @@
 - GitHub Pages was enabled with source **GitHub Actions** using the owner’s existing browser session.
 - GitHub Pages target: `https://aitscctv.github.io/aits-workplace/`.
 
+## Current deployment
+
+Backend deployed on 2026-11-16 at https://aits-workplace-api.aits-api.workers.dev with three isolated D1 databases and private R2 bucket. Owner-only Cloudflare Access login is configured for info@aitscctv.com; live browser verification is pending. The owner authorized existing paid-plan deployment and an account-wide $5 Workers usage limit, which is saved and enabled. D1/R2 and subscription fees are excluded, and enforcement delay can cause overshoot. No plan upgrades or payment actions are authorized. Private source records have not yet been migrated.
+
+See [backend configuration](../backend/README.md) for the implemented adapter and authentication flow. The checklist below describes migration requirements; private data reconciliation remains outstanding.
+
 ## Cloudflare
 
 The original server implementation targets Cloudflare Workers. The closest independent migration needs:
@@ -14,7 +20,7 @@ The original server implementation targets Cloudflare Workers. The closest indep
 | App | Runtime | Database | Object storage |
 | --- | --- | --- | --- |
 | Workplace | None | None | None |
-| Project Board | Worker / Vinext | D1 binding `DB` | None |
+| Project Board | Shared API Worker | D1 binding `DB` | None |
 | Inventory | Worker / Vinext | D1 binding `DB` | None |
 | Design Studio | Worker | D1 binding `DB` | R2 binding `BUCKET` |
 
@@ -22,7 +28,7 @@ Use three separate databases to preserve the original app boundaries. Schema SQL
 
 Required account access: read the selected account; deploy Workers; manage the three D1 databases; manage the Design Studio R2 bucket; configure authenticated access and allowed visitor identities. Authenticate through Wrangler OAuth or set a scoped Cloudflare API token in a secure local environment/GitHub Actions secret. Never put tokens in source, runtime.json, Pages, or a chat message.
 
-**Cost constraint:** The owner has prohibited payments without separate authorization. Check current plan, resource availability and billing requirements before provisioning. Do not activate paid plans, enable billing, or create a resource requiring payment without approval. No new Cloudflare resource was provisioned as part of the source import.
+**Cost constraint:** The owner has prohibited payments without separate authorization. Check current plan, resource availability and billing requirements before provisioning. Do not activate paid plans, enable billing, or create a resource requiring payment without approval. New backend resources were subsequently authorized and provisioned on 2026-11-16.
 
 ## Authentication must be replaced before deployment
 
@@ -33,11 +39,11 @@ Before enabling external API URLs:
 1. Configure an identity provider / Cloudflare Access application and the approved AITS users.
 2. Verify the provider's signed token at the Worker, including signature, issuer, audience, expiry and authorized role. Reject missing/invalid identity. Strip any client-supplied `oai-*` identity headers; derive trusted internal identities only after verification.
 3. Preserve the admin/team-form access rules and per-owner isolation. Map original owner IDs during private data import.
-4. Define an explicit login flow usable from the GitHub Pages origin. Cross-site cookie behavior must be tested; the current frontend supports credentialed requests but does not implement an identity-provider login adapter.
+4. Define an explicit login flow usable from the GitHub Pages origin. Cross-site cookie behavior must be tested; the frontend now uses an Access login popup and a signed bearer token in sessionStorage.
 5. Restrict CORS to `https://aitscctv.github.io`, support OPTIONS preflight, and retain CSRF protection. Original APIs enforce same-origin writes; adapt these checks to the verified Pages origin rather than simply removing them.
 6. Test unauthorized access, cross-owner reads/writes, form-only roles, stale revisions and rollback on failures before connecting production data.
 
-The current `config/runtime.json` has empty API URLs intentionally. `web/runtime.js` reports HTTP 503 for API requests until configured. Set the app origins only after the backend and authentication are verified. No API key belongs in that file.
+`config/runtime.json` contains deployed API prefixes, without secrets. Missing sessions receive 401; the login endpoint is protected by Access.
 
 ## Existing endpoints preserved
 
