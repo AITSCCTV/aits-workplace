@@ -21,3 +21,17 @@
 .aits-ui .content-studio .primary{box-shadow:none;background:#65676a}.aits-ui .content-studio .search:focus{box-shadow:0 0 0 3px #80828520}.aits-ui[data-aits-app=floorplan-studio] .source-mode button.active{background:#eaecef;border-color:#8e9093;color:#545659}
 
 .aits-ui[data-aits-app=floorplan-studio] .shell[hidden]{display:none!important}.studio-login[hidden]{display:none!important}
+
+/* Floorplan UI uses the workspace red, charcoal, white and bronze palette. */
+body.aits-ui[data-aits-app=floorplan-studio]{--navy:#292426;--navy2:#383132;--ink:#292426;--muted:#80736b;--line:#e3d9d2;--paper:#fff;--canvas:#f5f1ed;--blue:#b5212a;--blue2:#941c25;--aqua:#947153;--amber:#947153;background:#faf8f6}
+.aits-ui[data-aits-app=floorplan-studio] .shell>.sidebar,.aits-ui[data-aits-app=floorplan-studio] .topbar{background:#faf8f6}
+.aits-ui[data-aits-app=floorplan-studio] .btn-primary,.aits-ui[data-aits-app=floorplan-studio] .journey-bottom #journeyNext,.aits-ui[data-aits-app=floorplan-studio] .journey #reportBtn{background:#b5212a!important;border-color:#b5212a;color:white}
+.aits-ui[data-aits-app=floorplan-studio] .btn-primary:hover,.aits-ui[data-aits-app=floorplan-studio] .journey-bottom #journeyNext:hover{background:#941c25!important}
+.aits-ui[data-aits-app=floorplan-studio] .journey-steps button.is-current,.aits-ui[data-aits-app=floorplan-studio] .journey-tab.active,.aits-ui[data-aits-app=floorplan-studio] .source-mode button.active,.aits-ui[data-aits-app=floorplan-studio] .sidebar .side-link.active{background:#fae9e8;color:#a11e28;border-color:#b5212a}
+.aits-ui[data-aits-app=floorplan-studio] .journey-steps button.is-current span,.aits-ui[data-aits-app=floorplan-studio] .journey-tab.active .journey-step-number{background:#b5212a;border-color:#b5212a;color:#fff}
+.aits-ui[data-aits-app=floorplan-studio] #journeyEyebrow,.aits-ui[data-aits-app=floorplan-studio] .side-icon{color:#947153}
+.aits-ui[data-aits-app=floorplan-studio] .eyebrow-line{background:#947153}
+.aits-ui[data-aits-app=floorplan-studio] input{accent-color:#b5212a}
+
+.aits-ui[data-aits-app=floorplan-studio] .survey-source button[aria-pressed=true]{background:#fae9e8;border-color:#b5212a;color:#a11e28}
+.aits-ui[data-aits-app=floorplan-studio] .journey-bottom #journeyNext:disabled{background:#e3d9d2!important;border-color:#e3d9d2;color:#80736b}

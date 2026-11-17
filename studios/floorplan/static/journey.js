@@ -71,7 +71,8 @@
   document.querySelector('.work-grid').remove();
   document.querySelector('.intro-stats').remove();
   document.querySelector('.intro-row h1').textContent='Create your floorplan';
-  document.querySelector('.intro-copy').textContent='Four steps from your floor plan to a layout you can review and share.';
+  const introCopy=document.querySelector('.intro-copy');
+  if(introCopy)introCopy.textContent='Four steps from your floor plan to a layout you can review and share.';
   document.querySelector('.sidebar-note')?.remove();
   document.querySelector('.side-foot')?.remove();
   document.querySelector('.sidebar .side-upload').remove();
