@@ -1,3 +1,4 @@
+import {configuredRoles} from './role-settings.mjs';
 import {rolePresets,isPrivilegedRole} from './roles.mjs';
 import {HttpError} from './auth.mjs';
 export const toolsCatalog=[
@@ -19,7 +20,7 @@ export async function membersApi(request,env,user){
  if(!user.admin||!user.token)throw new HttpError(403,'Only the workspace owner can manage employee access.');
  const db=env.DB_PROJECT_BOARD,owner=ownerEmails(env).includes(user.email);
 
- if(request.method==='GET')return Response.json({owner,passwordLoginEnabled:env.PASSWORD_LOGIN_ENABLED==='true',roles:rolePresets.filter(r=>!r.legacy&&(owner||!isPrivilegedRole(r.id))),loginReady:env.EMPLOYEE_LOGIN_READY==='true',owners:ownerEmails(env),catalog:toolsCatalog,members:(await db.prepare('SELECT * FROM workspace_members WHERE removed_at IS NULL ORDER BY email LIMIT 501').all()).results.map(decode)});
+ if(request.method==='GET')return Response.json({owner,passwordLoginEnabled:env.PASSWORD_LOGIN_ENABLED==='true',roles:(await configuredRoles(db)).filter(r=>owner||!isPrivilegedRole(r.id)),loginReady:env.EMPLOYEE_LOGIN_READY==='true',owners:ownerEmails(env),catalog:toolsCatalog,members:(await db.prepare('SELECT * FROM workspace_members WHERE removed_at IS NULL ORDER BY email LIMIT 501').all()).results.map(decode)});
  if(request.method!=='POST')throw new HttpError(405,'POST is required.');
  if(!request.headers.get('content-type')?.startsWith('application/json'))throw new HttpError(415,'JSON is required.');
  let b;try{b=await request.json()}catch{throw new HttpError(400,'Invalid JSON.');}
@@ -45,12 +46,13 @@ export async function membersApi(request,env,user){
  const role=b.role||'custom';
  if(!rolePresets.some(r=>r.id===role))throw new HttpError(400,'Unknown role.');
  if(!owner&&isPrivilegedRole(role))throw new HttpError(403,'Only the owner can assign administrators.');
- const selected=isPrivilegedRole(role)?toolsCatalog.map(t=>t.id).sort():[...new Set(b.tools)].sort();
+ const configured=await db.prepare('SELECT tools FROM workspace_roles WHERE id=?').bind(role).first();
+ const selected=isPrivilegedRole(role)?toolsCatalog.map(t=>t.id).sort():configured?JSON.parse(configured.tools):[...new Set(b.tools)].sort();
  if(toolsCatalog.some(t=>selected.includes(t.id)&&t.requires.some(id=>!selected.includes(id))))throw new HttpError(400,'LINE review also requires Task board, Projects and LINE archive.');
  if((before&&!before.removed_at?before.revision:0)!==b.revision)throw new HttpError(409,'Access changed. Reload and review before saving.');
  if((!before||before.removed_at)&&(await db.prepare('SELECT count(*) AS n FROM workspace_members WHERE removed_at IS NULL').first()).n>=500)throw new HttpError(400,'Employee limit reached.');
  const revision=before?.revision||0,at=new Date().toISOString(),tools=JSON.stringify(selected),next={email,role,tools:selected,enabled:b.enabled,revision:revision+1};
- const mutation=before?db.prepare('UPDATE workspace_members SET tools=?,enabled=?,role=?,removed_at=NULL,revision=revision+1,updated_at=?,updated_by=? WHERE email=? AND revision=?').bind(tools,+b.enabled,role,at,user.email,email,revision):db.prepare('INSERT OR IGNORE INTO workspace_members(email,tools,enabled,role,revision,updated_at,updated_by) VALUES(?,?,?,?,1,?,?)').bind(email,tools,+b.enabled,role,at,user.email);
+ const mutation=before?db.prepare('UPDATE workspace_members SET tools=COALESCE((SELECT tools FROM workspace_roles WHERE id=?),?),enabled=?,role=?,removed_at=NULL,revision=revision+1,updated_at=?,updated_by=? WHERE email=? AND revision=?').bind(role,tools,+b.enabled,role,at,user.email,email,revision):db.prepare('INSERT OR IGNORE INTO workspace_members(email,tools,enabled,role,revision,updated_at,updated_by) VALUES(?,COALESCE((SELECT tools FROM workspace_roles WHERE id=?),?),?,?,1,?,?)').bind(email,role,tools,+b.enabled,role,at,user.email);
  const result=await db.batch([mutation,db.prepare('INSERT INTO workspace_member_audit(id,email,actor,before_data,after_data,at) SELECT ?,?,?,?,?,? WHERE changes()=1').bind(crypto.randomUUID(),email,user.email,before?JSON.stringify(decode(before)):null,JSON.stringify(next),at)]);
  if(!result[0].meta.changes)throw new HttpError(409,'Access changed. Reload and review before saving.');
  return Response.json({member:next});

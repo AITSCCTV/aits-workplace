@@ -86,3 +86,7 @@ await build({entryPoints:['web/assistant-page.tsx'],outfile:out+'/assets/assista
 await mkdir(out+'/assistant',{recursive:true});
 await writeFile(out+'/assistant/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AITS AI Assistant</title><link rel="icon" type="image/svg+xml" href="${base}brand/aits-icon.svg?v=${assetVersion}"><link rel="stylesheet" href="${base}tools.css?v=${assetVersion}"><link rel="stylesheet" href="${base}brand.css?v=${assetVersion}"><link rel="stylesheet" href="${base}assistant.css?v=${assetVersion}"></head><body><div id="app"></div><script type="module" src="${base}assets/assistant-page.js"></script></body></html>`,'workplace'));
 await cp('web/assistant.css',out+'/assistant.css');
+
+await build({entryPoints:['web/roles.tsx'],outfile:out+'/assets/roles.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
+await mkdir(out+'/roles',{recursive:true});
+await writeFile(out+'/roles/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Roles · AITS</title><link rel="stylesheet" href="${base}assets/roles.css"></head><body><div id="app"></div><script type="module" src="${base}assets/roles.js"></script></body></html>`,'workplace'));

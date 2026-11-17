@@ -10,10 +10,34 @@ import {readArchive} from '../line-archive.mjs';
 import {scanLine,suggestMessage,approveReview,reviewApi} from '../line-review.mjs';
 const origin='https://aitscctv.github.io';
 function database(files){const sql=new DatabaseSync(':memory:');for(const file of files)sql.exec(readFileSync(file,'utf8'));const wrap=(query,args=[])=>({bind(...values){return wrap(query,values)},async first(){return sql.prepare(query).get(...args)||null},async all(){return {results:sql.prepare(query).all(...args)}},async run(){return {meta:{changes:sql.prepare(query).run(...args).changes}}}});return {sql,prepare:query=>wrap(query),async batch(queries){sql.exec('BEGIN');try{const result=[];for(const q of queries)result.push(await q.run());sql.exec('COMMIT');return result}catch(e){sql.exec('ROLLBACK');throw e}}};}
-function environment(){const objects=new Map();return {FRONTEND_ORIGIN:origin,ADMIN_EMAILS:'info@aitscctv.com',TEAM_EMAILS:'team@example.com',TEAM_DOMAIN:'https://aits-test.cloudflareaccess.com',POLICY_AUD:'test-audience',DB_PROJECT_BOARD:database(['sites/project-board/drizzle/0000_flowery_the_professor.sql','sites/project-board/drizzle/0001_mute_silver_sable.sql','backend/migrations/calendar.sql','backend/migrations/sync.sql','backend/migrations/review.sql','backend/migrations/members.sql','backend/migrations/accounts.sql','backend/migrations/remove-members.sql']),DB_INVENTORY:database(['sites/inventory/drizzle/0000_overrated_corsair.sql']),DB_DESIGN_STUDIO:database(['sites/design-studio/drizzle/0000_smiling_hobgoblin.sql']),BUCKET:{put:async(k,v)=>objects.set(k,v),get:async k=>objects.has(k)?{text:async()=>objects.get(k)}:null,delete:async k=>objects.delete(k)}};}
+function environment(){const objects=new Map();return {FRONTEND_ORIGIN:origin,ADMIN_EMAILS:'info@aitscctv.com',TEAM_EMAILS:'team@example.com',TEAM_DOMAIN:'https://aits-test.cloudflareaccess.com',POLICY_AUD:'test-audience',DB_PROJECT_BOARD:database(['sites/project-board/drizzle/0000_flowery_the_professor.sql','sites/project-board/drizzle/0001_mute_silver_sable.sql','backend/migrations/calendar.sql','backend/migrations/sync.sql','backend/migrations/review.sql','backend/migrations/members.sql','backend/migrations/accounts.sql','backend/migrations/remove-members.sql','backend/migrations/roles.sql']),DB_INVENTORY:database(['sites/inventory/drizzle/0000_overrated_corsair.sql']),DB_DESIGN_STUDIO:database(['sites/design-studio/drizzle/0000_smiling_hobgoblin.sql']),BUCKET:{put:async(k,v)=>objects.set(k,v),get:async k=>objects.has(k)?{text:async()=>objects.get(k)}:null,delete:async k=>objects.delete(k)}};}
 const req=(path,method='GET',body,extra={})=>new Request('https://api.example'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...extra},body:body===undefined?undefined:JSON.stringify(body)});
 const admin={id:'verified-owner',email:'info@aitscctv.com',admin:true,token:'signed-token'};
 const worker=createWorker(async()=>admin);
+
+test('role permissions apply to all members, new assignments and existing sessions with revision-safe audit',async()=>{
+ const e=environment(),db=e.DB_PROJECT_BOARD,path='/project-board/api/roles',members='/project-board/api/members';
+ db.sql.prepare('INSERT INTO workspace_roles VALUES(?,?,1,?,?)').run('sales','["tasks","projects"]','now',admin.email);
+ for(const email of ['one@example.com','two@example.com'])assert.equal((await worker.fetch(req(members,'POST',{email,role:'sales',tools:['line-send'],revision:0,enabled:email.startsWith('one')}),e)).status,200);
+ const {privateKey,publicKey}=await generateKeyPair('RS256');
+ const jwt=await new SignJWT({email:'one@example.com'}).setProtectedHeader({alg:'RS256'}).setSubject('one').setIssuedAt().setExpirationTime('1h').setIssuer(e.TEAM_DOMAIN).setAudience(e.POLICY_AUD).sign(privateKey);
+ const request=req('/auth/me','GET',undefined,{Authorization:'Bearer '+jwt});
+ assert.deepEqual((await authenticate(request,e,publicKey)).tools,['tasks','projects']);
+ const ordinary=createWorker(async()=>({...admin,admin:false})),delegated=createWorker(async()=>({...admin,email:'director@example.com',owner:false}));
+ assert.equal((await ordinary.fetch(req(path),e)).status,403);
+ assert.equal((await delegated.fetch(req(path,'POST',{id:'sales',revision:1,tools:[]}),e)).status,403);
+ assert.equal((await worker.fetch(req(path,'POST',{id:'managing-director',revision:1,tools:[]}),e)).status,403);
+ assert.equal((await worker.fetch(req(path,'POST',{id:'sales',revision:1,tools:['line-send']}),e)).status,400);
+ const saved=await worker.fetch(req(path,'POST',{id:'sales',revision:1,tools:['calendar']}),e);assert.equal(saved.status,200);assert.equal((await saved.json()).updated,2);
+ assert.deepEqual((await authenticate(request,e,publicKey)).tools,['calendar']);
+ assert.equal(db.sql.prepare("SELECT enabled FROM workspace_members WHERE email='two@example.com'").get().enabled,0);
+ assert.equal((await worker.fetch(req(path,'POST',{id:'sales',revision:1,tools:['tasks']}),e)).status,409);
+ assert.equal(db.sql.prepare('SELECT count(*) n FROM workspace_role_audit').get().n,1);
+ assert.equal((await worker.fetch(req(members,'POST',{email:'one@example.com',role:'sales',tools:['tasks'],enabled:true,revision:1}),e)).status,409);
+ assert.equal((await worker.fetch(req(members,'POST',{email:'new@example.com',role:'sales',tools:['tasks'],enabled:true,revision:0}),e)).status,200);
+ assert.equal(db.sql.prepare("SELECT tools FROM workspace_members WHERE email='new@example.com'").get().tools,'["calendar"]');
+ assert.equal(db.sql.prepare("SELECT count(*) n FROM workspace_member_audit WHERE json_extract(after_data,'$.roleUpdate') IS NOT NULL").get().n,2);
+});
 
 test('company roles preserve director protection and keep operational administrators scoped',async()=>{
  const e=environment(),path='/project-board/api/members';
