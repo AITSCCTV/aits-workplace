@@ -112,3 +112,8 @@ await writeFile(out+'/navigation/index.html',inject(`<!doctype html><html lang="
 await cp('web/responsive.css',out+'/responsive.css');
 async function finishResponsive(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory())await finishResponsive(file);else if(entry.name.endsWith('.html')){let html=await readFile(file,'utf8');html=html.replace('</head>','<link rel="stylesheet" href="'+base+'responsive.css?v='+assetVersion+'"></head>');await writeFile(file,html);}}}
 await finishResponsive(out);
+
+// Public catalog: deliberately excludes runtime, authentication and workspace shell.
+await build({entryPoints:['web/master-navigation.tsx'],outfile:out+'/assets/master-navigation.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
+await mkdir(out+'/master-navigation',{recursive:true});
+await writeFile(out+'/master-navigation/index.html',`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#b3212e"><title>Master Navigation</title><link rel="icon" type="image/svg+xml" href="${base}brand/aits-icon.svg"><link rel="stylesheet" href="${base}assets/master-navigation.css?v=${assetVersion}"></head><body><div id="app"></div><script type="module" src="${base}assets/master-navigation.js?v=${assetVersion}"></script></body></html>`);
