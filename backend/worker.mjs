@@ -1,3 +1,4 @@
+import {weeklyBriefApi,scheduledBrief} from './weeklybrief.mjs';
 import {rolesApi} from './role-settings.mjs';
 import {assistantApi} from './assistant.mjs';
 import {lineChat} from './line-chat.mjs';
@@ -26,7 +27,7 @@ async function limitedBody(request,limit){
  for(;;){const {done,value}=await reader.read();if(done)break;length+=value.length;if(length>limit){await reader.cancel();throw new HttpError(413,'Request is too large.');}chunks.push(value);}
  const bytes=new Uint8Array(length);let i=0;for(const c of chunks){bytes.set(c,i);i+=c.length;}return bytes;
 }
-export function createWorker(verify=authenticate){return {async scheduled(controller,env,ctx){ctx.waitUntil(Promise.allSettled([syncCalendars(env),scanLine(env),cleanSessions(env)]));},async fetch(request,env){
+export function createWorker(verify=authenticate){return {async scheduled(controller,env,ctx){ctx.waitUntil(Promise.allSettled([syncCalendars(env),scanLine(env),cleanSessions(env),scheduledBrief(env,new Date(controller.scheduledTime||Date.now()))]));},async fetch(request,env){
  const url=new URL(request.url),origin=request.headers.get('Origin');
  const allowed=env.FRONTEND_ORIGIN==='https://aitscctv.github.io'?env.FRONTEND_ORIGIN:null;
  const cors=origin===allowed;
@@ -49,6 +50,7 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
    return finish(new Response(html,{headers:{'Content-Type':'text/html;charset=utf-8','Content-Security-Policy':`default-src 'none'; script-src 'nonce-${nonce}'; frame-ancestors 'none'; base-uri 'none'`}}));
   }
   if(url.pathname==='/auth/me'&&request.method==='GET'){if(!user.token)throw new HttpError(403,'Workspace sign-in is required.');return finish(json(sessionInfo(user)));}
+  if(url.pathname==='/project-board/api/weeklybrief'){const body=await limitedBody(request,4096);return finish(await weeklyBriefApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
   if(url.pathname==='/project-board/api/roles'){const body=await limitedBody(request,16_000);return finish(await rolesApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
   if(url.pathname==='/project-board/api/members'){const body=await limitedBody(request,16_000);return finish(await membersApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
   const studioCheck=url.pathname.match(/^\/auth\/studio\/(content|floorplan)$/);

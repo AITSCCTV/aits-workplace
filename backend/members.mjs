@@ -2,6 +2,7 @@ import {configuredRoles} from './role-settings.mjs';
 import {rolePresets,isPrivilegedRole} from './roles.mjs';
 import {HttpError} from './auth.mjs';
 export const toolsCatalog=[
+ ['weeklybrief','สรุปประชุมประจำสัปดาห์','WeeklyBrief AI',['tasks']],
  ['assistant','ผู้ช่วย AI','AI assistant',[]],['crm','ข้อมูลลูกค้า AI','AI customer records',[]],['prices','ราคาสินค้า AI','AI price list',[]],['quotations','ใบเสนอราคา AI','AI quotations',[]],['calendar-write','สร้างกิจกรรมผ่าน AI','Create calendar events',['calendar']],
  ['tasks','บอร์ดงาน','Task board',[]],['projects','โครงการ','Projects',[]],
  ['calendar','ปฏิทิน','Calendar',[]],['line','บทสนทนา LINE','LINE conversations',[]],['line-send','ตอบกลับ LINE','Reply to LINE',['line']],

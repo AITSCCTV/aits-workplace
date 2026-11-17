@@ -90,3 +90,7 @@ await cp('web/assistant.css',out+'/assistant.css');
 await build({entryPoints:['web/roles.tsx'],outfile:out+'/assets/roles.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/roles',{recursive:true});
 await writeFile(out+'/roles/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Roles · AITS</title><link rel="stylesheet" href="${base}assets/roles.css"></head><body><div id="app"></div><script type="module" src="${base}assets/roles.js"></script></body></html>`,'workplace'));
+
+await build({entryPoints:['web/weeklybrief.tsx'],outfile:out+'/assets/weeklybrief.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
+await mkdir(out+'/weeklybrief',{recursive:true});
+await writeFile(out+'/weeklybrief/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WeeklyBrief AI · AITS</title><link rel="stylesheet" href="${base}assets/weeklybrief.css"></head><body><div id="app"></div><script type="module" src="${base}assets/weeklybrief.js"></script></body></html>`,'project-board'));
