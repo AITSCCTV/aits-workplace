@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./messaging.css";
+import { DirectSidebar, employeeRoles } from "./chat-direct";
 import { documentPreview } from "./chat-document-preview";
 const w = window as any;
 const t = (th: string, en: string) =>
@@ -94,6 +95,10 @@ function Chat() {
       assignments: [],
     }),
     [room, setRoom] = useState(""),
+    [section, setSection] = useState("groups"),
+    [peopleQuery, setPeopleQuery] = useState(""),
+    [reads, setReads] = useState<any[]>([]),
+    [dmNotice, setDmNotice] = useState<any>(null),
     [messages, setMessages] = useState<any[]>([]),
     [members, setMembers] = useState<string[]>([]),
     [more, setMore] = useState(false),
@@ -122,7 +127,9 @@ function Chat() {
     cancelUpload = useRef(false),
     state = useRef<any>(data),
     initialized = useRef(false),
-    notifyEnabled = useRef(false),
+    notifyEnabled = useRef(
+      "Notification" in window && Notification.permission === "granted",
+    ),
     lastUnread = useRef(new Map()),
     reconnect = useRef<any>(null),
     draftRoom = useRef("");
@@ -139,11 +146,26 @@ function Chat() {
       : r?.name || t("แชททีม", "Team Chat");
   async function bootstrap() {
     const d = await api("bootstrap");
-    if (notifyEnabled.current && initialized.current && document.hidden) {
+    if (initialized.current) {
       const changed = d.rooms.filter(
         (r: any) => r.unread > (lastUnread.current.get(r.id) || 0),
       );
+      const privateUpdate = changed.find(
+        (r: any) =>
+          r.kind === "dm" && (r.id !== current.current.room || document.hidden),
+      );
+      if (privateUpdate)
+        setDmNotice({
+          room: privateUpdate.id,
+          name:
+            d.people.find(
+              (p: any) =>
+                p.email !== d.email && privateUpdate.members?.includes(p.email),
+            )?.name || t("พนักงาน", "Employee"),
+        });
       if (
+        notifyEnabled.current &&
+        document.hidden &&
         changed.length &&
         "Notification" in window &&
         Notification.permission === "granted"
@@ -180,6 +202,7 @@ function Chat() {
     if (id !== loadId.current || current.current.room !== c.room) return;
     setMessages((prev) => (older ? [...v.messages, ...prev] : v.messages));
     setMembers(v.members);
+    setReads(v.reads || []);
     setMore(v.more);
     if (
       !older &&
@@ -212,7 +235,9 @@ function Chat() {
   useEffect(() => {
     let stopped = false,
       socket: WebSocket | undefined,
-      timer: any;
+      timer: any,
+      presenceTimer: any,
+      receiptTimer: any;
     const connect = async () => {
       try {
         const token = await api("ticket", {});
@@ -230,7 +255,33 @@ function Chat() {
           setLive("live");
           refresh();
         };
-        socket.onmessage = () => {
+        socket.onmessage = (event) => {
+          let signal;
+          try {
+            signal = JSON.parse(event.data);
+          } catch {
+            return;
+          }
+          if (signal.type === "presence") {
+            clearTimeout(presenceTimer);
+            presenceTimer = setTimeout(
+              () => bootstrap().catch((e: any) => setError(e.message)),
+              250,
+            );
+            return;
+          }
+          if (signal.type === "receipts") {
+            clearTimeout(receiptTimer);
+            receiptTimer = setTimeout(
+              () =>
+                (signal.room === current.current.room
+                  ? history()
+                  : bootstrap()
+                ).catch((e: any) => setError(e.message)),
+              250,
+            );
+            return;
+          }
           clearTimeout(timer);
           timer = setTimeout(refresh, 250);
         };
@@ -274,6 +325,8 @@ function Chat() {
       socket?.close();
       clearTimeout(reconnect.current);
       clearTimeout(timer);
+      clearTimeout(presenceTimer);
+      clearTimeout(receiptTimer);
       clearInterval(fallback);
       document.removeEventListener("visibilitychange", visible);
       window.removeEventListener("aits-language-change", lang);
@@ -281,6 +334,7 @@ function Chat() {
   }, []);
   useEffect(() => {
     setMessages([]);
+    setReads([]);
     setReply(null);
     setEdit(null);
     setBody("");
@@ -350,15 +404,28 @@ function Chat() {
   }
   function switchRoom(id: string) {
     if (upload) {
-      setError(
-        t("หยุดหรืออัปโหลดให้เสร็จก่อน", "Pause or finish the upload first."),
-      );
+      setError(t("หยุดหรืออัปโหลดให้เสร็จก่อน", "Pause or finish the upload first."));
       return;
     }
     setRoom(id);
+    if (state.current.rooms.find((r: any) => r.id === id)?.kind === "dm")
+      setSection("individuals");
+    setDmNotice((n: any) => (n?.room === id ? null : n));
     setSearch("");
     setPins(false);
     setNav(false);
+  }
+  async function startDirect(email: string) {
+    if (upload) {
+      setError(t("หยุดหรืออัปโหลดให้เสร็จก่อน", "Pause or finish the upload first."));
+      return;
+    }
+    await action(async () => {
+      const result = await api("dm", { members: [email] });
+      await bootstrap();
+      setSection("individuals");
+      switchRoom(result.id);
+    });
   }
   function remember(v: any) {
     const k = "aits-chat-upload:" + data.email + ":" + room;
@@ -385,10 +452,7 @@ function Chat() {
           item.lastModified !== file.lastModified)
       )
         throw Error(
-          t(
-            "เลือกไฟล์เดิมเพื่ออัปโหลดต่อ",
-            "Choose the original file to resume.",
-          ),
+          t("เลือกไฟล์เดิมเพื่ออัปโหลดต่อ", "Choose the original file to resume."),
         );
       let status = item
         ? await api("upload-status", { id: item.id })
@@ -520,7 +584,24 @@ function Chat() {
   }
   const selected = data.rooms.find((r: any) => r.id === room),
     groups = data.rooms.filter((r: any) => r.kind === "group"),
-    dms = data.rooms.filter((r: any) => ["dm", "groupdm"].includes(r.kind));
+    dms = data.rooms.filter((r: any) => r.kind === "groupdm"),
+    peer =
+      selected?.kind === "dm"
+        ? data.people.find(
+            (p: any) =>
+              p.email !== data.email && selected.members?.includes(p.email),
+          )
+        : null,
+    peerRead =
+      selected?.kind === "dm"
+        ? Math.max(
+            0,
+            ...reads.filter((r) => r.email !== data.email).map((r) => r.seq),
+          )
+        : 0,
+    privateUnread = data.rooms
+      .filter((r: any) => r.kind === "dm")
+      .reduce((sum: number, r: any) => sum + (r.unread || 0), 0);
   const editRoom = (r?: any) =>
     setDialog({
       type: "room",
@@ -572,90 +653,146 @@ function Chat() {
             onClick={() => setDialog({ type: "dm", name: "", members: [] })}
           />
         </header>
-        <div className="chat-room-filter">
-          <Icon name="search" />
-          <input
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder={t("ค้นหาช่อง", "Find a channel")}
-            aria-label={t("ค้นหาช่อง", "Find a channel")}
-          />
-        </div>
-        <div className="chat-group-picker">
+        <div
+          className="chat-sections"
+          role="tablist"
+          aria-label={t("ประเภทการสนทนา", "Conversation type")}
+        >
           <button
-            className={group === "all" ? "active" : ""}
-            onClick={() => setGroup("all")}
+            role="tab"
+            aria-selected={section === "groups"}
+            onClick={() => setSection("groups")}
           >
-            {t("ทั้งหมด", "All")}
+            {t("กลุ่มผู้ใช้", "User Groups")}
           </button>
-          {groups.map((g: any) => (
-            <button
-              key={g.id}
-              title={g.name}
-              className={group === g.id ? "active" : ""}
-              onClick={() => setGroup(g.id)}
-            >
-              {g.name}
-            </button>
-          ))}
+          <button
+            role="tab"
+            aria-selected={section === "individuals"}
+            onClick={() => setSection("individuals")}
+          >
+            {t("ผู้ใช้รายบุคคล", "Individual Users")}
+            {privateUnread > 0 && (
+              <b>{privateUnread > 99 ? "99+" : privateUnread}</b>
+            )}
+          </button>
         </div>
-        <div className="chat-channel-scroll">
-          {groups
-            .filter((g: any) => group === "all" || group === g.id)
-            .map((g: any) => (
-              <section key={g.id}>
-                <h3>
+        {section === "individuals" ? (
+          <>
+            <div className="chat-room-filter">
+              <Icon name="search" />
+              <input
+                type="search"
+                value={peopleQuery}
+                onChange={(e) => setPeopleQuery(e.target.value)}
+                placeholder={t(
+                  "ค้นหาพนักงานหรือบทบาท",
+                  "Find an employee or role",
+                )}
+                aria-label={t("ค้นหาพนักงาน", "Search employees")}
+              />
+            </div>
+            <div className="chat-channel-scroll">
+              <DirectSidebar
+                data={data}
+                room={room}
+                query={peopleQuery}
+                onOpen={switchRoom}
+                onStart={startDirect}
+                busy={busy}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="chat-room-filter">
+              <Icon name="search" />
+              <input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder={t("ค้นหาช่อง", "Find a channel")}
+                aria-label={t("ค้นหาช่อง", "Find a channel")}
+              />
+            </div>
+            <div className="chat-group-picker">
+              <button
+                className={group === "all" ? "active" : ""}
+                onClick={() => setGroup("all")}
+              >
+                {t("ทั้งหมด", "All")}
+              </button>
+              {groups.map((g: any) => (
+                <button
+                  key={g.id}
+                  title={g.name}
+                  className={group === g.id ? "active" : ""}
+                  onClick={() => setGroup(g.id)}
+                >
                   {g.name}
-                  {data.admin && (
-                    <Button
-                      icon="settings"
-                      label={t("แก้ไขกลุ่ม", "Edit group")}
-                      onClick={() => editRoom(g)}
-                    />
-                  )}
-                </h3>
-                {data.rooms
-                  .filter(
-                    (r: any) =>
-                      r.parent_id === g.id &&
-                      r.kind === "channel" &&
-                      r.name.toLowerCase().includes(filter.toLowerCase()),
-                  )
-                  .map(channelButton)}
-                {data.rooms
-                  .filter(
-                    (r: any) => r.parent_id === g.id && r.kind === "category",
-                  )
-                  .map((c: any) => (
-                    <div key={c.id}>
-                      <h4>
-                        {c.name}
-                        {data.admin && (
-                          <Button
-                            icon="settings"
-                            label={t("แก้ไขหมวดหมู่", "Edit category")}
-                            onClick={() => editRoom(c)}
-                          />
-                        )}
-                      </h4>
-                      {data.rooms
-                        .filter(
-                          (r: any) =>
-                            r.parent_id === c.id &&
-                            r.name.toLowerCase().includes(filter.toLowerCase()),
-                        )
-                        .map(channelButton)}
-                    </div>
-                  ))}
-              </section>
-            ))}
-          <h3>{t("ข้อความส่วนตัว", "Direct messages")}</h3>
-          {dms
-            .filter((r: any) =>
-              title(r).toLowerCase().includes(filter.toLowerCase()),
-            )
-            .map(channelButton)}
-        </div>
+                </button>
+              ))}
+            </div>
+            <div className="chat-channel-scroll">
+              {groups
+                .filter((g: any) => group === "all" || group === g.id)
+                .map((g: any) => (
+                  <section key={g.id}>
+                    <h3>
+                      {g.name}
+                      {data.admin && (
+                        <Button
+                          icon="settings"
+                          label={t("แก้ไขกลุ่ม", "Edit group")}
+                          onClick={() => editRoom(g)}
+                        />
+                      )}
+                    </h3>
+                    {data.rooms
+                      .filter(
+                        (r: any) =>
+                          r.parent_id === g.id &&
+                          r.kind === "channel" &&
+                          r.name.toLowerCase().includes(filter.toLowerCase()),
+                      )
+                      .map(channelButton)}
+                    {data.rooms
+                      .filter(
+                        (r: any) =>
+                          r.parent_id === g.id && r.kind === "category",
+                      )
+                      .map((c: any) => (
+                        <div key={c.id}>
+                          <h4>
+                            {c.name}
+                            {data.admin && (
+                              <Button
+                                icon="settings"
+                                label={t("แก้ไขหมวดหมู่", "Edit category")}
+                                onClick={() => editRoom(c)}
+                              />
+                            )}
+                          </h4>
+                          {data.rooms
+                            .filter(
+                              (r: any) =>
+                                r.parent_id === c.id &&
+                                r.name
+                                  .toLowerCase()
+                                  .includes(filter.toLowerCase()),
+                            )
+                            .map(channelButton)}
+                        </div>
+                      ))}
+                  </section>
+                ))}
+              <h3>{t("ข้อความส่วนตัว", "Direct messages")}</h3>
+              {dms
+                .filter((r: any) =>
+                  title(r).toLowerCase().includes(filter.toLowerCase()),
+                )
+                .map(channelButton)}
+            </div>
+          </>
+        )}
         <footer>
           <span className={"chat-connection " + live}>
             <i />
@@ -683,19 +820,22 @@ function Chat() {
           />
           <div>
             <h1>
-              {!!selected?.private && <Icon name="lock" />}
+              {(!!selected?.private || selected?.kind === "dm") && (
+                <Icon name="lock" />
+              )}
               {title(selected)}
             </h1>
             <small>
-              {selected
-                ? t(
-                    "พื้นที่ทำงานร่วมกันของทีม",
-                    "A place for your team to connect",
-                  )
-                : t(
-                    "เลือกช่องเพื่อเริ่มสนทนา",
-                    "Choose a conversation to get started",
-                  )}
+              {peer ? (
+                <>
+                  {peer.online ? t("ออนไลน์", "Online") : t("ออฟไลน์", "Offline")}{" "}
+                  · {employeeRoles(peer, data.roles)}
+                </>
+              ) : selected ? (
+                t("พื้นที่ทำงานร่วมกันของทีม", "A place for your team to connect")
+              ) : (
+                t("เลือกช่องเพื่อเริ่มสนทนา", "Choose a conversation to get started")
+              )}
             </small>
           </div>
           <div className="chat-toolbar">
@@ -767,6 +907,19 @@ function Chat() {
               )}
           </div>
         </header>
+        {dmNotice && (
+          <div className="chat-dm-notice" role="status">
+            <button onClick={() => switchRoom(dmNotice.room)}>
+              {t("ข้อความส่วนตัวใหม่จาก ", "New private message from ")}
+              {dmNotice.name}
+            </button>
+            <Button
+              icon="close"
+              label={t("ปิด", "Dismiss notification")}
+              onClick={() => setDmNotice(null)}
+            />
+          </div>
+        )}
         {error && (
           <div className="chat-error" role="status">
             {error}
@@ -908,6 +1061,15 @@ function Chat() {
                       ))}
                     </div>
                   )}
+                  {selected?.kind === "dm" &&
+                    m.author === data.email &&
+                    !m.deleted && (
+                      <small className="chat-read-receipt">
+                        {peerRead >= m.seq
+                          ? t("อ่านแล้ว", "Read")
+                          : t("ส่งแล้ว", "Sent")}
+                      </small>
+                    )}
                   {!m.deleted && (
                     <div className="chat-message-actions">
                       <button
@@ -949,9 +1111,7 @@ function Chat() {
                           )
                         }
                       >
-                        {m.pinned
-                          ? t("เลิกปักหมุด", "Unpin")
-                          : t("ปักหมุด", "Pin")}
+                        {m.pinned ? t("เลิกปักหมุด", "Unpin") : t("ปักหมุด", "Pin")}
                       </button>
                       {m.author === data.email && (
                         <button
@@ -1196,11 +1356,7 @@ function Chat() {
             <>
               <nav className="chat-admin-tabs">
                 <a href={w.AITS_CONFIG.base + "admin/?tab=roles"}>
-                  {t(
-                    "บทบาทและสิทธิ์ใน Access",
-                    "Roles & permissions in Access",
-                  )}{" "}
-                  ↗
+                  {t("บทบาทและสิทธิ์ใน Access", "Roles & permissions in Access")} ↗
                 </a>
               </nav>
 
@@ -1243,8 +1399,8 @@ function Chat() {
                   {t("จัดการไฟล์", "Manage files")}
                 </button>
                 <p>
-                  {t("พื้นที่จัดเก็บ", "Storage")}: {bytes(data.storage || 0)} /
-                  10 GB ·{" "}
+                  {t("พื้นที่จัดเก็บ", "Storage")}: {bytes(data.storage || 0)} / 10 GB
+                  ·{" "}
                   {t(
                     "อัปโหลดใหม่สูงสุด 10 GB ต่อเดือน",
                     "Up to 10 GB of new uploads per month",
@@ -1313,8 +1469,15 @@ function Chat() {
                   if (
                     dialog.type === "dm" ||
                     (dialog.type === "room" && dialog.kind === "channel")
-                  )
+                  ) {
+                    if (dialog.type === "dm")
+                      setSection(
+                        dialog.members.length === 1 && !dialog.id
+                          ? "individuals"
+                          : "groups",
+                      );
                     setRoom(result.id);
+                  }
                 });
               }}
             >

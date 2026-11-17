@@ -665,3 +665,122 @@ test("secondary privileged roles require owner approval and remain protected fro
     403,
   );
 });
+test("DM directory, private previews, monotonic receipts and enabled-user presence", async () => {
+  const e = setup(),
+    signals = [];
+  e.CHAT_ONLINE = () => [alice.email, "disabled@example.com"];
+  e.CHAT_READ = (room, emails) => signals.push({ room, emails });
+  e.DB_PROJECT_BOARD.sql
+    .prepare("INSERT INTO workspace_member_roles VALUES(?,?)")
+    .run(alice.email, "marketing");
+  const dm = await call(e, alice, "dm", { members: [bob.email] });
+  const sent = await send(e, alice, dm.id, "Private update");
+  const boot = await call(e, bob, "bootstrap");
+  const person = boot.people.find((p) => p.email === alice.email);
+  assert.equal(person.online, true);
+  assert(person.roles.includes("marketing"));
+  assert(person.roles.includes("sales"));
+  assert.equal(boot.people.find((p) => p.email === bob.email).online, false);
+  const recent = boot.rooms.find((r) => r.id === dm.id);
+  assert.equal(recent.lastMessage.body, "Private update");
+  assert.equal(recent.unread, 1);
+  const history = await call(e, bob, "messages", undefined, { room: dm.id });
+  const seq = history.messages[0].seq;
+  await call(e, bob, "read", { room: dm.id, seq });
+  await call(e, bob, "read", { room: dm.id, seq });
+  await call(e, bob, "read", { room: dm.id, seq: 0 });
+  assert.equal(signals.length, 1);
+  assert.deepEqual(signals[0].emails.sort(), [alice.email, bob.email]);
+  assert.equal(
+    (await call(e, alice, "messages", undefined, { room: dm.id })).reads.find(
+      (r) => r.email === bob.email,
+    ).seq,
+    seq,
+  );
+  assert.equal(
+    (await call(e, bob, "bootstrap")).rooms.find((r) => r.id === dm.id).unread,
+    0,
+  );
+  for (const [action, body, query] of [
+    ["read", { room: dm.id, seq }],
+    ["react", { id: sent.id, emoji: "👍" }],
+    ["send", { room: dm.id, body: "intrusion", id: crypto.randomUUID() }],
+    ["messages", undefined, { room: dm.id, q: "Private" }],
+    ["upload-start", { room: dm.id, name: "attack.txt", size: 10 }],
+    ["dm", { id: dm.id, members: [alice.email, bob.email] }],
+  ])
+    await reject(call(e, owner, action, body, query), 403);
+  assert.equal(
+    (await call(e, owner, "bootstrap")).rooms.some((r) => r.id === dm.id),
+    false,
+  );
+  await call(e, alice, "edit", {
+    id: sent.id,
+    revision: 1,
+    body: "Updated private preview",
+  });
+  assert.equal(
+    (await call(e, bob, "bootstrap")).rooms.find((r) => r.id === dm.id)
+      .lastMessage.body,
+    "Updated private preview",
+  );
+  await call(e, alice, "delete", { id: sent.id, revision: 2 });
+  assert.equal(
+    (await call(e, bob, "bootstrap")).rooms.find((r) => r.id === dm.id)
+      .lastMessage,
+    null,
+  );
+  e.DB_PROJECT_BOARD.sql
+    .prepare("UPDATE workspace_members SET enabled=0 WHERE email=?")
+    .run(alice.email);
+  assert.equal(
+    (await call(e, bob, "bootstrap")).people.some(
+      (p) => p.email === alice.email,
+    ),
+    false,
+  );
+  await reject(call(e, alice, "messages", undefined, { room: dm.id }), 403);
+});
+test("live read receipt signals reach only the two DM participants", async () => {
+  const { ChatHub } = await import("../chat-hub.mjs");
+  const e = setup();
+  const dm = await call(e, alice, "dm", { members: [bob.email] });
+  await send(e, alice, dm.id, "Private");
+  const seq = (await call(e, bob, "messages", undefined, { room: dm.id }))
+    .messages[0].seq;
+  const sockets = [alice, bob, owner].map((user) => ({
+    email: user.email,
+    readyState: 1,
+    events: [],
+    send(value) {
+      this.events.push(JSON.parse(value));
+    },
+  }));
+  const ctx = {
+    getWebSockets: (email) =>
+      sockets.filter((ws) => !email || ws.email === email),
+    getTags: (ws) => [ws.email],
+    storage: { getAlarm: async () => Date.now() },
+  };
+  const hub = new ChatHub(ctx, e);
+  const result = await hub.fetch(
+    new Request("https://internal/?action=read", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Chat-Identity": JSON.stringify(bob),
+      },
+      body: JSON.stringify({ room: dm.id, seq }),
+    }),
+  );
+  assert.equal(result.status, 200);
+  assert.deepEqual(sockets[0].events, [{ type: "receipts", room: dm.id }]);
+  assert.deepEqual(sockets[1].events, sockets[0].events);
+  assert.deepEqual(sockets[2].events, []);
+  const bootstrap = await hub.fetch(
+    new Request("https://internal/?action=bootstrap", {
+      headers: { "X-Chat-Identity": JSON.stringify(alice) },
+    }),
+  );
+  assert((await bootstrap.json()).people.every((p) => p.online));
+});

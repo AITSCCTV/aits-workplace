@@ -27,6 +27,21 @@ export class ChatHub {
         if (!identity) throw new HttpError(403, "Sign-in required.");
         const env = {
           ...this.env,
+          CHAT_ONLINE: () => [
+            ...new Set(
+              this.ctx
+                .getWebSockets()
+                .filter((ws) => ws.readyState === 1)
+                .flatMap((ws) => this.ctx.getTags(ws)),
+            ),
+          ],
+          CHAT_READ: (room, participants) => {
+            for (const email of participants)
+              for (const ws of this.ctx.getWebSockets(email))
+                try {
+                  ws.send(JSON.stringify({ type: "receipts", room }));
+                } catch {}
+          },
           CHAT_TICKET: async () => {
             await chatIdentity(this.env, identity);
             const ticket = crypto.randomUUID() + crypto.randomUUID();
@@ -103,18 +118,27 @@ export class ChatHub {
       server = pair[1];
     this.ctx.acceptWebSocket(server, [identity.email]);
     server.serializeAttachment({ at: Date.now() });
+    this.presence();
     return new Response(null, { status: 101, webSocket: client });
+  }
+  presence() {
+    for (const ws of this.ctx.getWebSockets())
+      try {
+        ws.send('{"type":"presence"}');
+      } catch {}
   }
   webSocketMessage(ws) {
     ws.close(1008, "Use the authenticated HTTP API.");
   }
   webSocketClose(ws, code) {
     ws.close(code);
+    this.presence();
   }
   webSocketError(ws) {
     try {
       ws.close(1011, "Reconnect");
     } catch {}
+    this.presence();
   }
   async alarm() {
     const clean = async () => {

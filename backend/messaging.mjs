@@ -155,6 +155,20 @@ async function employees(db, env) {
     if (found) found.role = "owner";
     else people.push({ email, name: email, role: "owner" });
   }
+  const assignments = await rows(
+    db,
+    "SELECT email,role_id FROM workspace_member_roles",
+  );
+  for (const person of people) {
+    person.roles = [
+      ...new Set([
+        person.role,
+        ...assignments
+          .filter((a) => a.email === person.email)
+          .map((a) => a.role_id),
+      ]),
+    ];
+  }
   return people;
 }
 function validId(value) {
@@ -211,14 +225,27 @@ export async function messagingApi(request, env, identity) {
             )
           ).map((m) => m.email);
       }
+      const online = new Set(env.CHAT_ONLINE ? env.CHAT_ONLINE() : []);
+      const people = (await employees(db, env)).map((p) => ({
+        ...p,
+        online: online.has(p.email),
+      }));
+      for (const r of rooms.filter((r) => r.kind === "dm")) {
+        r.lastMessage = await one(
+          db,
+          "SELECT id,author,substr(body,1,180) body,created,seq,(SELECT count(*) FROM chat_files WHERE message_id=m.id AND status='ready') files FROM chat_messages m WHERE room_id=? AND deleted=0 ORDER BY seq DESC LIMIT 1",
+          r.id,
+        );
+      }
       return Response.json({
         email: user.email,
         admin: user.chatAdmin,
         rooms,
-        people: await employees(db, env),
+        people,
         roles: (await configuredRoles(db)).map((r) => ({
           id: r.id,
           name: r.en,
+          nameTh: r.th,
           manage: +r.chatManage,
         })),
         assignments: user.chatAdmin
@@ -299,7 +326,15 @@ export async function messagingApi(request, env, identity) {
           if (![403, 404].includes(e.status)) throw e;
         }
       }
-      return Response.json({ messages: found.reverse(), more, members });
+      const reads =
+        room.kind === "dm"
+          ? await rows(
+              db,
+              "SELECT r.email,r.seq FROM chat_reads r JOIN chat_members m ON m.room_id=r.room_id AND m.email=r.email WHERE r.room_id=?",
+              room.id,
+            )
+          : [];
+      return Response.json({ messages: found.reverse(), more, members, reads });
     }
     if (action === "file") return downloadFile(request, env, user);
     if (action === "files") {
@@ -604,7 +639,7 @@ export async function messagingApi(request, env, identity) {
     return Response.json({ ok: true });
   }
   if (action === "read") {
-    await roomAccess(db, user, b.room);
+    const room = await roomAccess(db, user, b.room);
     const seq = Math.max(
       0,
       Math.min(
@@ -618,13 +653,24 @@ export async function messagingApi(request, env, identity) {
         ).n,
       ),
     );
-    await run(
+    const result = await run(
       db,
-      "INSERT INTO chat_reads VALUES(?,?,?) ON CONFLICT(room_id,email) DO UPDATE SET seq=max(seq,excluded.seq)",
+      "INSERT INTO chat_reads VALUES(?,?,?) ON CONFLICT(room_id,email) DO UPDATE SET seq=excluded.seq WHERE excluded.seq>seq",
       b.room,
       user.email,
       seq,
     );
+    if (room.kind === "dm" && result.meta.changes && env.CHAT_READ) {
+      const participants = await rows(
+        db,
+        "SELECT email FROM chat_members WHERE room_id=?",
+        room.id,
+      );
+      env.CHAT_READ(
+        room.id,
+        participants.map((p) => p.email),
+      );
+    }
     return Response.json({ ok: true });
   }
   if (action === "upload-start") {
