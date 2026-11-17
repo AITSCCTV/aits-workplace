@@ -8,9 +8,19 @@
   let identity=null;
   const account={signedIn:()=>!!session?.token,info:()=>identity,can:tool=>!!identity&&(identity.admin||identity.tools.includes(tool))};
   window.AITS_SESSION=account;
+  account.attachment=async({id,name,mime,inline,scope})=>{
+    if(!session?.token||!api)throw Error('Please sign in to AITS.');
+    if(!('serviceWorker' in navigator))throw Error('Use a current browser with secure downloads enabled.');
+    const registration=await navigator.serviceWorker.register(scope+'files-sw.js',{scope});
+    const worker=registration.active||registration.installing||registration.waiting;
+    if(worker.state!=='activated')await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('Secure download setup timed out. Please try again.')),15000);worker.addEventListener('statechange',()=>{if(worker.state==='activated'){clearTimeout(timeout);resolve()}})});
+    if(!navigator.serviceWorker.controller)await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Reload Team Chat to enable secure downloads.')),10000);navigator.serviceWorker.addEventListener('controllerchange',()=>{clearTimeout(timer);resolve()},{once:true})});
+    const target=new URL('/project-board/api/messaging',api);target.searchParams.set('action','file');target.searchParams.set('id',id);
+    return new Promise((resolve,reject)=>{const channel=new MessageChannel(),timeout=setTimeout(()=>reject(Error('Secure download timed out.')),10000);channel.port1.onmessage=e=>{clearTimeout(timeout);resolve(e.data.url)};worker.postMessage({type:'chat-file',url:target.href,token:session.token,name,mime,inline},[channel.port2])});
+  };
   account.auth=async(path,data)=>{const response=await originalFetch(new URL(path,api),{method:'POST',headers:{'Content-Type':'application/json',...(session?.token?{Authorization:'Bearer '+session.token}:{})},body:JSON.stringify(data),credentials:'omit',redirect:'error'});const result=await response.json();if(!response.ok)throw Error(result.error||'Unable to sign in.');return result;};
   account.accept=value=>{session={token:value.token,email:value.email};sessionStorage.setItem(key,JSON.stringify(session));location.reload();};
-  account.clear=()=>{session=null;sessionStorage.removeItem(key);location.reload();};
+  account.clear=()=>{navigator.serviceWorker?.controller?.postMessage({type:'chat-clear'});session=null;sessionStorage.removeItem(key);location.reload();};
   account.options=api?originalFetch(new URL('/auth/options',api),{credentials:'omit'}).then(r=>r.json()).catch(()=>({password:false,google:false})):Promise.resolve({password:false,google:false});
   account.ready=(async()=>{
     if(!session?.token||!api)return null;

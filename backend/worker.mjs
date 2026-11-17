@@ -1,4 +1,5 @@
 import {projectManagementApi} from './project-management.mjs';
+export {ChatHub} from './chat-hub.mjs';
 import {weeklyBriefApi,scheduledBrief} from './weeklybrief.mjs';
 import {rolesApi} from './role-settings.mjs';
 import {assistantApi} from './assistant.mjs';
@@ -32,13 +33,17 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
  const url=new URL(request.url),origin=request.headers.get('Origin');
  const allowed=env.FRONTEND_ORIGIN==='https://aitscctv.github.io'?env.FRONTEND_ORIGIN:null;
  const cors=origin===allowed;
- const finish=response=>{const h=new Headers(response.headers);h.set('Cache-Control','no-store');h.set('X-Content-Type-Options','nosniff');h.set('Referrer-Policy','no-referrer');h.set('Vary','Origin');if(cors){h.set('Access-Control-Allow-Origin',allowed);h.set('Access-Control-Allow-Methods','GET, POST, PUT, OPTIONS');h.set('Access-Control-Allow-Headers','Authorization, Content-Type');}return new Response(response.body,{status:response.status,headers:h});};
+ const finish=response=>{const h=new Headers(response.headers);h.set('Cache-Control','no-store');h.set('X-Content-Type-Options','nosniff');h.set('Referrer-Policy','no-referrer');h.set('Vary','Origin');if(cors){h.set('Access-Control-Allow-Origin',allowed);h.set('Access-Control-Allow-Methods','GET, POST, PUT, OPTIONS');h.set('Access-Control-Allow-Headers','Authorization, Content-Type, Range');h.set('Access-Control-Expose-Headers','Content-Range, Content-Disposition, Accept-Ranges');}return new Response(response.body,{status:response.status,headers:h});};
  try{
   if(origin&&origin!==allowed&&origin!==url.origin)throw new HttpError(403,'Origin not allowed.');
   if(request.method==='OPTIONS'){if(!cors)throw new HttpError(403,'Origin not allowed.');return finish(new Response(null,{status:204}));}
   if(url.pathname==='/health'&&request.method==='GET')return finish(json({service:'aits-workplace-api',authenticationConfigured:!!env.POLICY_AUD}));
   if(url.pathname==='/auth/options'&&request.method==='GET')return finish(json({password:env.PASSWORD_LOGIN_ENABLED==='true',google:env.GOOGLE_LOGIN_READY==='true'}));
   if(url.pathname==='/auth/password/login'){const body=await limitedBody(request,4096);return finish(await passwordLogin(new Request(url.href,{method:request.method,headers:request.headers,body}),env));}
+  if(url.pathname==='/project-board/api/messaging/live'){
+   if(origin!==allowed||!env.CHAT_HUB)throw new HttpError(403,'Origin not allowed.');
+   return env.CHAT_HUB.get(env.CHAT_HUB.idFromName('workspace')).fetch(new Request('https://internal/live'+url.search,request));
+  }
   const user=await verify(request,env);
   if(user.mustChangePassword&&!['/auth/me','/auth/password/change','/auth/logout'].includes(url.pathname))throw new HttpError(403,'Change your temporary password before using the workspace.');
   if(['/auth/password/change','/auth/logout','/project-board/api/member-password'].includes(url.pathname)){const body=await limitedBody(request,4096);return finish(await passwordApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
@@ -51,6 +56,13 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
    return finish(new Response(html,{headers:{'Content-Type':'text/html;charset=utf-8','Content-Security-Policy':`default-src 'none'; script-src 'nonce-${nonce}'; frame-ancestors 'none'; base-uri 'none'`}}));
   }
   if(url.pathname==='/auth/me'&&request.method==='GET'){if(!user.token)throw new HttpError(403,'Workspace sign-in is required.');return finish(json(sessionInfo(user)));}
+  if(url.pathname==='/project-board/api/messaging'){
+   if(!env.CHAT_HUB)throw new HttpError(503,'Team Chat is not configured.');
+   const headers=new Headers(request.headers);headers.set('X-Chat-Identity',JSON.stringify({...user,token:!!user.token}));headers.delete('Authorization');headers.delete('cf-access-jwt-assertion');headers.delete('Cookie');
+   const part=url.searchParams.get('action')==='part';
+   const body=part?request.body:await limitedBody(request,32_000);
+   return finish(await env.CHAT_HUB.get(env.CHAT_HUB.idFromName('workspace')).fetch(new Request(request.url,{method:request.method,headers,body})));
+  }
   if(url.pathname==='/project-board/api/project-management'){const body=await limitedBody(request,32_000);return finish(await projectManagementApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
   if(url.pathname==='/project-board/api/weeklybrief'){const body=await limitedBody(request,4096);return finish(await weeklyBriefApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
   if(url.pathname==='/project-board/api/roles'){const body=await limitedBody(request,16_000);return finish(await rolesApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}

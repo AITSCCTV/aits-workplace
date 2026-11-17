@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS chat_roles(id TEXT PRIMARY KEY,name TEXT NOT NULL,manage INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS chat_user_roles(email TEXT NOT NULL,role_id TEXT NOT NULL,PRIMARY KEY(email,role_id));
+CREATE TABLE IF NOT EXISTS chat_rooms(id TEXT PRIMARY KEY,name TEXT NOT NULL,kind TEXT NOT NULL,parent_id TEXT NOT NULL DEFAULT '',private INTEGER NOT NULL DEFAULT 0,roles TEXT NOT NULL DEFAULT '[]',position INTEGER NOT NULL DEFAULT 0,creator TEXT NOT NULL,deleted INTEGER NOT NULL DEFAULT 0,revision INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE IF NOT EXISTS chat_members(room_id TEXT NOT NULL,email TEXT NOT NULL,PRIMARY KEY(room_id,email));
+CREATE TABLE IF NOT EXISTS chat_messages(seq INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT NOT NULL UNIQUE,room_id TEXT NOT NULL,author TEXT NOT NULL,body TEXT NOT NULL,reply_id TEXT,created TEXT NOT NULL,edited TEXT,deleted INTEGER NOT NULL DEFAULT 0,pinned INTEGER NOT NULL DEFAULT 0,revision INTEGER NOT NULL DEFAULT 1);
+CREATE INDEX IF NOT EXISTS chat_room_history ON chat_messages(room_id,seq);
+CREATE TABLE IF NOT EXISTS chat_reactions(message_id TEXT NOT NULL,email TEXT NOT NULL,emoji TEXT NOT NULL,PRIMARY KEY(message_id,email,emoji));
+CREATE TABLE IF NOT EXISTS chat_reads(room_id TEXT NOT NULL,email TEXT NOT NULL,seq INTEGER NOT NULL,PRIMARY KEY(room_id,email));
+CREATE TABLE IF NOT EXISTS chat_files(id TEXT PRIMARY KEY,room_id TEXT NOT NULL,owner TEXT NOT NULL,name TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,upload_id TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'pending',message_id TEXT,created TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS chat_file_message ON chat_files(message_id);
+CREATE TABLE IF NOT EXISTS chat_parts(file_id TEXT NOT NULL,part INTEGER NOT NULL,etag TEXT NOT NULL,PRIMARY KEY(file_id,part));
+CREATE TABLE IF NOT EXISTS chat_usage(period TEXT NOT NULL,kind TEXT NOT NULL,n INTEGER NOT NULL,PRIMARY KEY(period,kind));
+CREATE TABLE IF NOT EXISTS chat_audit(id TEXT PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,target TEXT NOT NULL,at TEXT NOT NULL);
+INSERT OR IGNORE INTO chat_rooms(id,name,kind,creator) VALUES('team','AITS','group','system');
+INSERT OR IGNORE INTO chat_rooms(id,name,kind,parent_id,creator) VALUES('general','general','channel','team','system');
+INSERT OR IGNORE INTO chat_roles(id,name) SELECT id,replace(id,'-',' ') FROM workspace_roles;

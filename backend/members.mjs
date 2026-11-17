@@ -15,7 +15,7 @@ export const toolsCatalog=[
 ].map(([id,th,en,requires])=>({id,th,en,requires}));
 export const ownerEmails=env=>(env.ADMIN_EMAILS||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
 export const hasTool=(user,tool)=>user.admin||user.tools?.includes(tool);
-export function sessionInfo(user){return {email:user.email,admin:user.admin,owner:!!user.owner,role:user.role||(user.admin?'owner':'custom'),mustChangePassword:!!user.mustChangePassword,passwordLogin:!!user.sessionHash,tools:[...new Set([...(user.admin?toolsCatalog.map(t=>t.id):user.tools||[]),...(user.admin||user.employee?['project-management']:[])])]};}
+export function sessionInfo(user){return {email:user.email,admin:user.admin,owner:!!user.owner,role:user.role||(user.admin?'owner':'custom'),mustChangePassword:!!user.mustChangePassword,passwordLogin:!!user.sessionHash,tools:[...new Set([...(user.admin?toolsCatalog.map(t=>t.id):user.tools||[]),...(user.admin||user.employee?['project-management','messaging']:[])])]};}
 const decode=row=>({...row,tools:JSON.parse(row.tools),enabled:!!row.enabled});
 export async function membersApi(request,env,user){
  if(!user.admin||!user.token)throw new HttpError(403,'Only the workspace owner can manage employee access.');

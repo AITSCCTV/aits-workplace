@@ -98,3 +98,8 @@ await build({entryPoints:['web/project-management.tsx'],outfile:out+'/assets/pro
 await mkdir(out+'/project-management',{recursive:true});
 await writeFile(out+'/project-management/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Project Management · AITS</title><link rel="stylesheet" href="${base}assets/project-management.css"></head><body><div id="app"></div><script type="module" src="${base}assets/project-management.js"></script></body></html>`,'project-board'));
 await cp('web/pm-guidance',out+'/project-management/guidance',{recursive:true});
+
+await build({entryPoints:['web/messaging.tsx'],outfile:out+'/assets/messaging.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
+await mkdir(out+'/messaging',{recursive:true});
+await cp('web/chat-files-sw.js',out+'/messaging/files-sw.js');
+await writeFile(out+'/messaging/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Team Chat | AITS</title><link rel="stylesheet" href="${base}assets/messaging.css"></head><body><div id="app"></div><script type="module" src="${base}assets/messaging.js"></script></body></html>`,'project-board'));

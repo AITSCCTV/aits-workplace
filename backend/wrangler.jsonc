@@ -64,5 +64,21 @@
       "binding": "CONTENT_STUDIO_SERVICE",
       "service": "aits-api"
     }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CHAT_HUB",
+        "class_name": "ChatHub"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "chat-v1",
+      "new_sqlite_classes": [
+        "ChatHub"
+      ]
+    }
   ]
 }
