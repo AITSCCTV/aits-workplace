@@ -3,13 +3,27 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {briefPeriod,summarizeBoard,generateBrief,weeklyBriefApi,scheduledBrief} from '../weeklybrief.mjs';
-const now=new Date('2026-11-16T01:00:00Z'),user={email:'manager@example.com',token:'test',tools:['weeklybrief','tasks']};
+import {briefSources} from '../weeklybrief-sources.mjs';
+const now=new Date('2026-11-16T01:00:00Z'),user={email:'manager@example.com',token:'test',tools:['weeklybrief','tasks','line','calendar']};
 function environment(){
  const sql=new DatabaseSync(':memory:');for(const path of ['sites/project-board/drizzle/0000_flowery_the_professor.sql','backend/migrations/assistant.sql','backend/migrations/members.sql','backend/migrations/accounts.sql','backend/migrations/remove-members.sql','backend/migrations/weeklybrief.sql'])sql.exec(readFileSync(path,'utf8'));
  const wrap=(q,a=[])=>({bind(...args){return wrap(q,args)},async first(){return sql.prepare(q).get(...a)||null},async all(){return {results:sql.prepare(q).all(...a)}},async run(){const stmt=sql.prepare(q);return stmt.columns().length?{results:stmt.all(...a),meta:{changes:0}}:{meta:{changes:stmt.run(...a).changes}}}});
  return {OPENAI_API_KEY:'test',ASSISTANT_MONTHLY_USD:'5',DB_PROJECT_BOARD:{sql,prepare:q=>wrap(q),async batch(qs){sql.exec('BEGIN');try{const results=[];for(const q of qs)results.push(await q.run());sql.exec('COMMIT');return results}catch(e){sql.exec('ROLLBACK');throw e}}}};
 }
 const task=(id,data)=>({id,data:JSON.stringify(data),updated:now.toISOString()});
+test('external evidence is bounded, dated, cited and protected by both source permissions',async()=>{
+ const e=environment(),db=e.DB_PROJECT_BOARD;e.DB_LINE_ARCHIVE=db;
+ db.sql.exec('CREATE TABLE customers(id TEXT,real_name TEXT,name TEXT); CREATE TABLE conversations(id TEXT,customer_id TEXT,sender TEXT,message TEXT,message_type TEXT,timestamp TEXT); CREATE TABLE calendar_snapshot(id INTEGER,data TEXT);');
+ db.sql.prepare('INSERT INTO conversations VALUES(?,?,?,?,?,?)').run('message-1','customer-1','customer','Installation is delayed','text','2026-11-15T10:00:00Z');
+ db.sql.prepare('INSERT INTO conversations VALUES(?,?,?,?,?,?)').run('old','customer-1','customer','Old message','text','2026-10-01T10:00:00Z');
+ db.sql.prepare('INSERT INTO calendar_snapshot VALUES(1,?)').run(JSON.stringify({asOf:'2026-11-15T01:00:00Z',calendars:8,events:[{id:'event-1',title:'Site visit',start:'2026-11-18',end:'2026-11-19',calendar:'Team'}]}));
+ const sources=await briefSources(e,briefPeriod(now),now);assert.equal(sources.line.records.length,1);assert.equal(sources.calendar.stale,true);assert.equal(sources.calendar.records.length,1);
+ const provider=async(url,options)=>{const b=JSON.parse(options.body),input=JSON.parse(b.input);assert.equal(input.externalSources.length,2);assert.equal(b.tools,undefined);return Response.json({usage:{input_tokens:100,output_tokens:50},output:[{content:[{type:'output_text',text:JSON.stringify({highlights:[],agenda:[],updates:[{text:'Review a reported delay.',taskIds:[],sourceIds:['line:message-1']}]})}]}]})};
+ const r=await generateBrief(e,user,'en',false,provider,now);assert.equal(r.ai.status,'ready');assert.equal(r.ai.updates.length,1);assert.equal(r.requestCostUsd,r.ai.costUsd);
+ for(const missing of ['line','calendar'])await assert.rejects(weeklyBriefApi(new Request('https://local/api/weeklybrief?id='+r.id),e,{...user,tools:user.tools.filter(t=>t!==missing)}),err=>err.status===403);
+ const fake=async()=>Response.json({output:[{content:[{type:'output_text',text:JSON.stringify({highlights:[],agenda:[],updates:[{text:'False',taskIds:[],sourceIds:['line:missing']}]})}]}]});
+ assert.equal((await generateBrief(e,user,'th',false,fake,now)).ai.status,'unavailable');
+});
 test('Bangkok weeks handle Sunday UTC, year boundaries and exact Monday cutoff',()=>{
  assert.equal(briefPeriod(new Date('2026-11-15T17:01:00Z')).week,'2026-11-16');
  assert.equal(briefPeriod(new Date('2026-11-15T16:59:00Z')).week,'2026-11-09');
@@ -27,7 +41,7 @@ test('counts use task state and completion transitions, deduplicate history and 
 test('generation caches requests, reserves usage and rejects invented task citations',async()=>{
  const e=environment();let calls=0;const provider=async(url,options)=>{calls++;assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);assert.equal(body.store,false);assert.equal(body.tools,undefined);return Response.json({usage:{input_tokens:10,output_tokens:10},output:[{content:[{type:'output_text',text:JSON.stringify({highlights:[{text:'No recorded tasks.',taskIds:[]}],agenda:[]})}]}]})};
  const first=await generateBrief(e,user,'en',false,provider,now);assert.equal(first.ai.status,'ready');assert.equal(first.stats.total,0);
- assert.deepEqual(await generateBrief(e,user,'en',false,provider,now),first);assert.equal(calls,1);
+ const cached=await generateBrief(e,user,'en',false,provider,now);assert.equal(cached.requestCostUsd,0);assert.equal(cached.cached,true);assert.deepEqual(cached.stats,first.stats);assert.equal(calls,1);
  await assert.rejects(generateBrief(e,user,'en',true,provider,now),err=>err.status===429);
  const bad=async()=>Response.json({output:[{content:[{type:'output_text',text:JSON.stringify({highlights:[{text:'Fake',taskIds:['invented']}],agenda:[]})}]}]});
  const second=await generateBrief(e,user,'th',false,bad,now);assert.equal(second.ai.status,'unavailable');assert.equal(second.ai.highlights.length,0);
