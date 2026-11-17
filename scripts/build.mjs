@@ -107,3 +107,8 @@ await writeFile(out+'/messaging/index.html',inject(`<!doctype html><html lang="t
 await build({entryPoints:['web/navigation.tsx'],outfile:out+'/assets/navigation.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/navigation',{recursive:true});
 await writeFile(out+'/navigation/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Navigation · AITS</title><link rel="stylesheet" href="${base}assets/navigation.css"></head><body><div id="app"></div><script type="module" src="${base}assets/navigation.js"></script></body></html>`,'workplace'));
+
+// Responsive foundations must follow every tool, including late-built routes.
+await cp('web/responsive.css',out+'/responsive.css');
+async function finishResponsive(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory())await finishResponsive(file);else if(entry.name.endsWith('.html')){let html=await readFile(file,'utf8');html=html.replace('</head>','<link rel="stylesheet" href="'+base+'responsive.css?v='+assetVersion+'"></head>');await writeFile(file,html);}}}
+await finishResponsive(out);

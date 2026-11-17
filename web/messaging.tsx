@@ -120,6 +120,7 @@ function Chat() {
     [nav, setNav] = useState(false),
     [group, setGroup] = useState("all"),
     [, language] = useState(0);
+  useEffect(()=>{const close=(e:KeyboardEvent)=>{if(e.key==='Escape'){setNav(false);setMemberPanel(false)}};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[]);
   const current = useRef({ room: "", search: "", pins: false }),
     loadId = useRef(0),
     bottom = useRef<HTMLDivElement>(null),
@@ -641,6 +642,7 @@ function Chat() {
   }
   return (
     <main className="chat-app" data-no-translate="">
+      {nav && <button className="chat-drawer-shade" aria-label={t("ปิดรายการสนทนา", "Close conversations")} onClick={()=>setNav(false)}/>}
       <aside className={"chat-rooms " + (nav ? "open" : "")}>
         <header>
           <div className="chat-brand">

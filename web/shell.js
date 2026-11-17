@@ -9,9 +9,19 @@ import {navigationItems,projectSections,canNavigate} from './navigation-catalog.
   document.body.classList.add('aits-ui');try{document.body.classList.toggle('aits-nav-expanded',localStorage.getItem('aits-nav-expanded')==='true')}catch{}document.body.dataset.aitsApp=config.app;
   const sidebar=document.createElement('nav');sidebar.className='aits-sidebar';sidebar.dataset.noTranslate='';
   const menu=document.createElement('button');menu.className='aits-mobile-menu';menu.type='button';menu.innerHTML=icon('M4 6h16M4 12h16M4 18h16');menu.setAttribute('aria-expanded','false');
-  sidebar.id='aits-navigation';menu.setAttribute('aria-controls',sidebar.id);const narrow=matchMedia('(max-width:650px)');const syncMenu=()=>{sidebar.inert=narrow.matches&&!document.body.classList.contains('aits-menu-open')};narrow.addEventListener('change',syncMenu);const toggle=()=>{const open=document.body.classList.toggle('aits-menu-open');menu.setAttribute('aria-expanded',String(open));syncMenu()};menu.onclick=toggle;syncMenu();
+  sidebar.id='aits-navigation';menu.setAttribute('aria-controls',sidebar.id);const narrow=matchMedia('(max-width:900px)');const backdrop=document.createElement('button');backdrop.className='aits-nav-backdrop';backdrop.tabIndex=-1;backdrop.setAttribute('aria-label',t('ปิดเมนู','Close navigation'));document.body.append(backdrop);
+  const syncMenu=()=>{sidebar.inert=narrow.matches&&!document.body.classList.contains('aits-menu-open');if(!narrow.matches){document.body.classList.remove('aits-menu-open');menu.setAttribute('aria-expanded','false')}};
+  const toggle=()=>{const open=document.body.classList.toggle('aits-menu-open');menu.setAttribute('aria-expanded',String(open));syncMenu();if(open)requestAnimationFrame(()=>{if(document.body.classList.contains('aits-menu-open'))sidebar.querySelector('a')?.focus({preventScroll:true})});else menu.focus()};
+  narrow.addEventListener('change',syncMenu);menu.onclick=toggle;backdrop.onclick=()=>{if(document.body.classList.contains('aits-menu-open'))toggle()};syncMenu();
+  document.addEventListener('keydown',e=>{if(e.key!=='Tab'||!narrow.matches||!document.body.classList.contains('aits-menu-open'))return;const focusable=[...sidebar.querySelectorAll('a[href],button:not([disabled]),input'),menu].filter(el=>el.getClientRects().length);const first=focusable[0],last=focusable.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}});
+  const accountBar=document.querySelector('.workspace-account'),languageBar=document.querySelector('nav[aria-label="Language / ภาษา"]');
+  if(accountBar&&languageBar)accountBar.append(languageBar);
+  const measureHeader=()=>{if(accountBar)document.documentElement.style.setProperty('--aits-header-height',accountBar.getBoundingClientRect().height+'px')};
+  if(accountBar){new ResizeObserver(measureHeader).observe(accountBar);const identity=accountBar.querySelector('span');if(identity)new MutationObserver(()=>{identity.title=identity.textContent}).observe(identity,{childList:true,subtree:true,characterData:true})}measureHeader();
+  const measureViewport=()=>document.documentElement.style.setProperty('--aits-viewport-height',(window.visualViewport?.height||innerHeight)+'px');measureViewport();window.visualViewport?.addEventListener('resize',measureViewport);window.addEventListener('resize',measureViewport);
+
   const palette=document.createElement('dialog');palette.className='aits-command';palette.dataset.noTranslate='';
-  function openSearch(){palette.showModal();palette.querySelector('input').focus()}
+  function openSearch(){if(document.body.classList.contains('aits-menu-open'))toggle();palette.showModal();palette.querySelector('input').focus()}
   let projectNav=null;
   function render(){
    const page=location.pathname.replace(base,'').replace(/index\.html$/,'');const projectSection=projectSections.find(s=>s.path===page);const current=projectSection?'project-management/':page;const expanded=document.body.classList.contains('aits-nav-expanded');const shortNames=Object.fromEntries(navigationItems.map(r=>[r.path,[r.shortTh,r.shortEn]]));
