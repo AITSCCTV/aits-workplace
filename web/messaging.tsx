@@ -107,7 +107,6 @@ function Chat() {
     [pending, setPending] = useState<any>(null),
     [preview, setPreview] = useState<any>(null),
     [dialog, setDialog] = useState<any>(null),
-    [adminTab, setAdminTab] = useState("channels"),
     [filter, setFilter] = useState(""),
     [search, setSearch] = useState(""),
     [pins, setPins] = useState(false),
@@ -250,7 +249,12 @@ function Chat() {
       try {
         const d = await bootstrap();
         if (stopped) return;
-        setRoom(d.rooms.find((r: any) => r.kind === "channel")?.id || "");
+        setRoom(
+          (
+            d.rooms.find((r: any) => r.id === "general") ||
+            d.rooms.find((r: any) => r.kind === "channel")
+          )?.id || "",
+        );
         await connect();
       } catch (e: any) {
         setError(e.message);
@@ -358,13 +362,15 @@ function Chat() {
   }
   function remember(v: any) {
     const k = "aits-chat-upload:" + data.email + ":" + room;
-    v ? sessionStorage.setItem(k, JSON.stringify(v)) : sessionStorage.removeItem(k);
+    v
+      ? sessionStorage.setItem(k, JSON.stringify(v))
+      : sessionStorage.removeItem(k);
     setPending(v);
   }
   async function uploadFile(file: File, resume = false) {
     setError("");
     cancelUpload.current = false;
-    setUpload({name:file.name,progress:0});
+    setUpload({ name: file.name, progress: 0 });
     const selected = room;
     try {
       if (file.size > 1e9)
@@ -1189,148 +1195,62 @@ function Chat() {
           {dialog.type === "admin" ? (
             <>
               <nav className="chat-admin-tabs">
-                {[
-                  ["channels", "ช่อง", "Channels"],
-                  ["roles", "บทบาท", "Roles"],
-                  ["members", "สมาชิก", "Members"],
-                ].map(([id, th, en]) => (
-                  <button
-                    className={adminTab === id ? "active" : ""}
-                    key={id}
-                    onClick={() => setAdminTab(id)}
-                  >
-                    {t(th, en)}
-                  </button>
-                ))}
+                <a href={w.AITS_CONFIG.base + "admin/?tab=roles"}>
+                  {t(
+                    "บทบาทและสิทธิ์ใน People",
+                    "Roles & permissions in People",
+                  )}{" "}
+                  ↗
+                </a>
               </nav>
-              {adminTab === "channels" ? (
-                <>
-                  <button className="chat-primary" onClick={() => editRoom()}>
-                    {t(
-                      "สร้างกลุ่ม / หมวดหมู่ / ช่อง",
-                      "Create group / category / channel",
-                    )}
-                  </button>
-                  {data.rooms
-                    .filter((r: any) => !["dm", "groupdm"].includes(r.kind))
-                    .map((r: any) => (
-                      <div className="chat-admin-row" key={r.id}>
-                        <span>
-                          {r.name}
-                          <small>
-                            {r.kind} ·{" "}
-                            {r.private
-                              ? t("ส่วนตัว", "Private")
-                              : t("พนักงานทุกคน", "All employees")}
-                          </small>
-                        </span>
-                        <button onClick={() => editRoom(r)}>
-                          {t("แก้ไข", "Edit")}
-                        </button>
-                      </div>
-                    ))}
-                  <button
-                    onClick={() =>
-                      action(async () =>
-                        setDialog({
-                          type: "storage",
-                          title: t("ไฟล์แนบ", "Attachments"),
-                          files: (await api("files")).files,
-                        }),
-                      )
-                    }
-                  >
-                    {t("จัดการไฟล์", "Manage files")}
-                  </button>
-                  <p>
-                    {t("พื้นที่จัดเก็บ", "Storage")}: {bytes(data.storage || 0)}{" "}
-                    / 10 GB ·{" "}
-                    {t(
-                      "อัปโหลดใหม่สูงสุด 10 GB ต่อเดือน",
-                      "Up to 10 GB of new uploads per month",
-                    )}
-                  </p>
-                </>
-              ) : adminTab === "roles" ? (
-                <>
-                  <p>
-                    {t(
-                      "บทบาทเหล่านี้ควบคุมแชทเท่านั้น บทบาทหลักจาก People จะใช้ร่วมกันโดยอัตโนมัติ",
-                      "These roles control messaging only. Primary roles from People are inherited automatically.",
-                    )}
-                  </p>
-                  <button
-                    className="chat-primary"
-                    onClick={() =>
-                      setDialog({ type: "role", name: "", manage: false })
-                    }
-                  >
-                    {t("สร้างบทบาท", "Create role")}
-                  </button>
-                  {data.roles.map((r: any) => (
+
+              <>
+                <button className="chat-primary" onClick={() => editRoom()}>
+                  {t(
+                    "สร้างกลุ่ม / หมวดหมู่ / ช่อง",
+                    "Create group / category / channel",
+                  )}
+                </button>
+                {data.rooms
+                  .filter((r: any) => !["dm", "groupdm"].includes(r.kind))
+                  .map((r: any) => (
                     <div className="chat-admin-row" key={r.id}>
                       <span>
                         {r.name}
-                        {r.manage ? (
-                          <small>{t("ผู้ดูแลแชท", "Chat administrator")}</small>
-                        ) : null}
+                        <small>
+                          {r.kind} ·{" "}
+                          {r.private
+                            ? t("ส่วนตัว", "Private")
+                            : t("พนักงานทุกคน", "All employees")}
+                        </small>
                       </span>
-                      <button
-                        onClick={() =>
-                          setDialog({ type: "role", ...r, manage: !!r.manage })
-                        }
-                      >
+                      <button onClick={() => editRoom(r)}>
                         {t("แก้ไข", "Edit")}
                       </button>
                     </div>
                   ))}
-                </>
-              ) : (
-                <>
-                  <a href={w.AITS_CONFIG.base + "admin/"}>
-                    {t(
-                      "จัดการบัญชีพนักงานใน People",
-                      "Manage employee accounts in People",
-                    )}{" "}
-                    ↗
-                  </a>
-                  {data.people.map((p: any) => (
-                    <div className="chat-admin-row" key={p.email}>
-                      <span>
-                        {p.name}
-                        <small>
-                          {[
-                            p.role,
-                            ...data.assignments
-                              .filter((a: any) => a.email === p.email)
-                              .map(
-                                (a: any) =>
-                                  data.roles.find(
-                                    (r: any) => r.id === a.role_id,
-                                  )?.name,
-                              ),
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </small>
-                      </span>
-                      <button
-                        onClick={() =>
-                          setDialog({
-                            type: "membership",
-                            email: p.email,
-                            roles: data.assignments
-                              .filter((a: any) => a.email === p.email)
-                              .map((a: any) => a.role_id),
-                          })
-                        }
-                      >
-                        {t("กำหนดบทบาท", "Assign roles")}
-                      </button>
-                    </div>
-                  ))}
-                </>
-              )}
+                <button
+                  onClick={() =>
+                    action(async () =>
+                      setDialog({
+                        type: "storage",
+                        title: t("ไฟล์แนบ", "Attachments"),
+                        files: (await api("files")).files,
+                      }),
+                    )
+                  }
+                >
+                  {t("จัดการไฟล์", "Manage files")}
+                </button>
+                <p>
+                  {t("พื้นที่จัดเก็บ", "Storage")}: {bytes(data.storage || 0)} /
+                  10 GB ·{" "}
+                  {t(
+                    "อัปโหลดใหม่สูงสุด 10 GB ต่อเดือน",
+                    "Up to 10 GB of new uploads per month",
+                  )}
+                </p>
+              </>
             </>
           ) : dialog.type === "storage" ? (
             <>
@@ -1388,10 +1308,7 @@ function Chat() {
                   delete d.type;
                   if (dialog.type === "room" && dialog.kind === "group")
                     d.parentId = "";
-                  const result = await api(
-                    dialog.type === "membership" ? "membership" : dialog.type,
-                    d,
-                  );
+                  const result = await api(dialog.type, d);
                   setDialog(null);
                   if (
                     dialog.type === "dm" ||
@@ -1487,21 +1404,6 @@ function Chat() {
                   </p>
                 </>
               )}
-              {dialog.type === "role" && (
-                <label className="chat-inline">
-                  <input
-                    type="checkbox"
-                    checked={dialog.manage}
-                    onChange={(e) => patch({ manage: e.target.checked })}
-                  />
-                  {t(
-                    "จัดการช่อง บทบาท และสมาชิกแชท",
-                    "Manage channels, roles, and chat memberships",
-                  )}
-                </label>
-              )}
-              {dialog.type === "membership" &&
-                rolesPicker(dialog.roles, (roles) => patch({ roles }))}
               {dialog.type === "dm" && (
                 <>
                   {peoplePicker(dialog.members, (members) =>
@@ -1519,7 +1421,7 @@ function Chat() {
                 <button className="chat-primary" disabled={busy} type="submit">
                   {t("บันทึก", "Save")}
                 </button>
-                {dialog.id && ["room", "role"].includes(dialog.type) && (
+                {dialog.id && dialog.type === "room" && (
                   <button
                     type="button"
                     onClick={() =>

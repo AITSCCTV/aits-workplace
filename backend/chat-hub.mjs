@@ -11,6 +11,13 @@ export class ChatHub {
   }
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.pathname === "/refresh") {
+      for (const ws of this.ctx.getWebSockets())
+        try {
+          ws.send('{"type":"refresh"}');
+        } catch {}
+      return Response.json({ ok: true });
+    }
     if (url.pathname === "/live") return this.connect(request);
     const operation = async () => {
       try {

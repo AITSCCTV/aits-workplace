@@ -1,3 +1,5 @@
+import { effectiveAccess } from "./role-access.mjs";
+import { configuredRoles } from "./role-settings.mjs";
 import { HttpError } from "./auth.mjs";
 export const FILE_LIMIT = 1_000_000_000,
   PART_SIZE = 8 * 1024 * 1024,
@@ -43,21 +45,17 @@ export async function chatIdentity(env, user) {
     );
   if (!user.owner && (!member?.enabled || member.removed_at))
     fail(403, "An enabled employee account is required.");
-  const roles = await rows(
-    db,
-    "SELECT r.* FROM chat_roles r JOIN chat_user_roles u ON u.role_id=r.id WHERE u.email=?",
-    user.email,
-  );
-  // The primary workspace role is inherited; extra chat roles never grant workspace administration.
-  const inherited = member?.role
-    ? await one(db, "SELECT * FROM chat_roles WHERE id=?", member.role)
-    : null;
-  if (inherited && !roles.some((r) => r.id === inherited.id))
-    roles.push(inherited);
+  const access = member
+    ? await effectiveAccess(db, member)
+    : { roles: [], admin: false };
+  const roles = await configuredRoles(db);
   return {
     ...user,
-    chatAdmin: !!user.admin || roles.some((r) => r.manage === 1),
-    chatRoles: roles.map((r) => r.id),
+    chatAdmin:
+      !!user.admin ||
+      access.admin ||
+      roles.some((r) => access.roles.includes(r.id) && r.chatManage),
+    chatRoles: access.roles,
   };
 }
 export async function roomAccess(db, user, id) {
@@ -149,10 +147,13 @@ async function employees(db, env) {
     db,
     "SELECT m.email,coalesce(p.label,m.email) AS name,m.role FROM workspace_members m LEFT JOIN weeklybrief_people p ON p.email=m.email WHERE m.enabled=1 AND m.removed_at IS NULL ORDER BY name",
   );
-  for (const email of (env.ADMIN_EMAILS || '').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean)) {
-    const found=people.find(p=>p.email===email);
-    if(found)found.role='owner';
-    else people.push({email,name:email,role:'owner'});
+  for (const email of (env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)) {
+    const found = people.find((p) => p.email === email);
+    if (found) found.role = "owner";
+    else people.push({ email, name: email, role: "owner" });
   }
   return people;
 }
@@ -172,7 +173,7 @@ async function selectedPeople(db, v, env) {
   return [...new Set(v)];
 }
 async function selectedRoles(db, v) {
-  const roles = await rows(db, "SELECT id FROM chat_roles");
+  const roles = await configuredRoles(db);
   if (
     !Array.isArray(v) ||
     v.length > 50 ||
@@ -215,9 +216,13 @@ export async function messagingApi(request, env, identity) {
         admin: user.chatAdmin,
         rooms,
         people: await employees(db, env),
-        roles: await rows(db, "SELECT * FROM chat_roles ORDER BY name"),
+        roles: (await configuredRoles(db)).map((r) => ({
+          id: r.id,
+          name: r.en,
+          manage: +r.chatManage,
+        })),
         assignments: user.chatAdmin
-          ? await rows(db, "SELECT * FROM chat_user_roles")
+          ? await rows(db, "SELECT * FROM workspace_member_roles")
           : [],
         limits: { fileBytes: FILE_LIMIT, storageBytes: STORAGE_LIMIT },
         storage: user.chatAdmin
@@ -285,7 +290,7 @@ export async function messagingApi(request, env, identity) {
             email: p.email,
             token: "internal",
             role: p.role,
-            owner: p.role === 'owner',
+            owner: p.role === "owner",
             admin: ["managing-director", "admin", "owner"].includes(p.role),
           });
           await roomAccess(db, u, room.id);
@@ -329,6 +334,22 @@ export async function messagingApi(request, env, identity) {
     return env.CHAT_TICKET();
   }
   if (action === "room") {
+    const accessState = await one(
+      db,
+      "SELECT revision FROM workspace_access_state WHERE id=1",
+    );
+    const changeRoom = async (query) => {
+      const result = await db.batch([
+        db
+          .prepare(
+            "UPDATE workspace_access_state SET revision=revision+1 WHERE id=1 AND revision=?",
+          )
+          .bind(accessState.revision),
+        query,
+      ]);
+      if (!result[1].meta.changes)
+        fail(409, "Permissions changed. Reload and try again.");
+    };
     if (!user.chatAdmin) fail(403, "Messaging administrator required.");
     const id = b.id ? validId(b.id) : crypto.randomUUID(),
       old = await one(db, "SELECT * FROM chat_rooms WHERE id=?", id);
@@ -338,10 +359,12 @@ export async function messagingApi(request, env, identity) {
       fail(409, "Channel changed. Reload before saving.");
     if (b.remove) {
       if (!old) fail(404, "Channel not found.");
-      await run(
-        db,
-        "UPDATE chat_rooms SET deleted=1,revision=revision+1 WHERE id=?",
-        id,
+      await changeRoom(
+        db
+          .prepare(
+            "UPDATE chat_rooms SET deleted=1,revision=revision+1 WHERE id=? AND changes()=1",
+          )
+          .bind(id),
       );
       await audit(db, user, "archive-room", id);
       return Response.json({ id });
@@ -376,69 +399,36 @@ export async function messagingApi(request, env, identity) {
         300
     )
       fail(400, "Channel limit reached.");
-    await run(
-      db,
-      "INSERT INTO chat_rooms(id,name,kind,parent_id,private,roles,position,creator) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,parent_id=excluded.parent_id,private=excluded.private,roles=excluded.roles,position=excluded.position,revision=revision+1",
-      id,
-      name,
-      kind,
-      parent,
-      +privateRoom,
-      JSON.stringify(roles),
-      Math.min(9999, Math.max(0, Number(b.position) || 0)),
-      user.email,
+    await changeRoom(
+      db
+        .prepare(
+          "INSERT INTO chat_rooms(id,name,kind,parent_id,private,roles,position,creator) SELECT ?,?,?,?,?,?,?,? WHERE changes()=1 ON CONFLICT(id) DO UPDATE SET name=excluded.name,parent_id=excluded.parent_id,private=excluded.private,roles=excluded.roles,position=excluded.position,revision=revision+1",
+        )
+        .bind(
+          id,
+          name,
+          kind,
+          parent,
+          +privateRoom,
+          JSON.stringify(roles),
+          Math.min(9999, Math.max(0, Number(b.position) || 0)),
+          user.email,
+        ),
     );
     await audit(db, user, "save-room", id);
     return Response.json({ id });
   }
-  if (action === "role") {
-    if (!user.chatAdmin) fail(403, "Messaging administrator required.");
-    const id = b.id ? validId(b.id) : crypto.randomUUID();
-    if (b.remove) {
-      if (await one(db, "SELECT id FROM workspace_roles WHERE id=?", id))
-        fail(400, "Inherited workspace roles cannot be removed here.");
-      const rooms = await rows(
-        db,
-        "SELECT roles FROM chat_rooms WHERE private=1 AND deleted=0",
-      );
-      if (rooms.some((r) => list(r.roles).includes(id)))
-        fail(400, "Remove this role from private channels first.");
-      await db.batch([
-        db.prepare("DELETE FROM chat_user_roles WHERE role_id=?").bind(id),
-        db.prepare("DELETE FROM chat_roles WHERE id=?").bind(id),
-      ]);
-    } else {
-      const name = text(b.name, 80);
-      if (!name) fail(400, "Enter a role name.");
-      if (!b.id && (await one(db, "SELECT count(*) n FROM chat_roles")).n >= 50)
-        fail(400, "Role limit reached.");
-      await run(
-        db,
-        "INSERT INTO chat_roles VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,manage=excluded.manage",
-        id,
-        name,
-        +!!b.manage,
-      );
-    }
-    await audit(db, user, b.remove ? "delete-role" : "save-role", id);
-    return Response.json({ id });
-  }
-  if (action === "membership") {
-    if (!user.chatAdmin) fail(403, "Messaging administrator required.");
-    await selectedPeople(db, [b.email], env);
-    const roles = await selectedRoles(db, b.roles);
-    await db.batch([
-      db.prepare("DELETE FROM chat_user_roles WHERE email=?").bind(b.email),
-      ...roles.map((id) =>
-        db.prepare("INSERT INTO chat_user_roles VALUES(?,?)").bind(b.email, id),
-      ),
-    ]);
-    await audit(db, user, "assign-roles", b.email);
-    return Response.json({ ok: true });
-  }
+  if (action === "role" || action === "membership")
+    fail(
+      403,
+      "Manage shared roles and employee assignments in People settings.",
+    );
   if (action === "dm") {
     const members = [
-      ...new Set([user.email, ...(await selectedPeople(db, b.members || [], env))]),
+      ...new Set([
+        user.email,
+        ...(await selectedPeople(db, b.members || [], env)),
+      ]),
     ].sort();
     if (members.length < 2) fail(400, "Select another employee.");
     const old = b.id ? await roomAccess(db, user, b.id) : null;

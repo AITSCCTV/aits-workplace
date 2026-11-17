@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS workspace_member_roles(email TEXT NOT NULL,role_id TEXT NOT NULL,PRIMARY KEY(email,role_id));
+CREATE INDEX IF NOT EXISTS workspace_members_by_role ON workspace_member_roles(role_id,email);
+CREATE TABLE IF NOT EXISTS workspace_role_details(id TEXT PRIMARY KEY,name_en TEXT NOT NULL,name_th TEXT NOT NULL,chat_manage INTEGER NOT NULL DEFAULT 0,channel_id TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS workspace_access_state(id INTEGER PRIMARY KEY,revision INTEGER NOT NULL);
+INSERT OR IGNORE INTO workspace_access_state VALUES(1,1);
+INSERT OR IGNORE INTO workspace_roles(id,tools,revision,updated_at,updated_by) SELECT id,'[]',1,datetime('now'),'unified-roles' FROM chat_roles;
+INSERT OR IGNORE INTO workspace_role_details(id,name_en,name_th,chat_manage) SELECT id,name,name,manage FROM chat_roles;
+INSERT OR IGNORE INTO workspace_member_roles SELECT email,role FROM workspace_members WHERE removed_at IS NULL;
+INSERT OR IGNORE INTO workspace_member_roles SELECT c.email,c.role_id FROM chat_user_roles c JOIN workspace_members m ON m.email=c.email WHERE m.removed_at IS NULL AND c.role_id NOT IN ('admin','managing-director');
+INSERT OR IGNORE INTO chat_rooms(id,name,kind,creator,position) VALUES('role-channels','Teams','group','system',10);
+INSERT OR IGNORE INTO chat_rooms(id,name,kind,parent_id,private,roles,creator) SELECT 'role-'||r.id,coalesce(d.name_en,r.id),'channel','role-channels',1,json_array(r.id),'system' FROM workspace_roles r LEFT JOIN workspace_role_details d ON d.id=r.id WHERE r.id NOT IN ('admin','engineer','employee','custom');
+UPDATE workspace_role_details SET channel_id='role-'||id WHERE id NOT IN ('admin','engineer','employee','custom');

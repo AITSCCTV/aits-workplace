@@ -1,3 +1,5 @@
+import { rolesApi } from "../role-settings.mjs";
+import { membersApi } from "../members.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
@@ -28,6 +30,7 @@ function setup() {
     "roles",
     "weeklybrief",
     "messaging",
+    "unified-roles",
   ])
     sql.exec(readFileSync("backend/migrations/" + f + ".sql", "utf8"));
   const wrap = (q, a = []) => ({
@@ -120,6 +123,42 @@ function setup() {
   };
 }
 async function call(e, u, action, b, query = {}) {
+  if (action === "role") {
+    const result = await (
+      await rolesApi(
+        new Request("https://api/roles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...b, tools: [], chatManage: b.manage }),
+        }),
+        { ...e, ADMIN_EMAILS: owner.email },
+        u,
+      )
+    ).json();
+    return { ...result, id: result.role.id };
+  }
+  if (action === "membership") {
+    const m = e.DB_PROJECT_BOARD.sql
+      .prepare("SELECT * FROM workspace_members WHERE email=?")
+      .get(b.email);
+    return (
+      await membersApi(
+        new Request("https://api/members", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...m,
+            tools: [],
+            enabled: true,
+            roles: [m.role, ...b.roles],
+          }),
+        }),
+        { ...e, ADMIN_EMAILS: owner.email },
+        u,
+      )
+    ).json();
+  }
+
   const req = new Request(
     "https://api/project-board/api/messaging?" +
       new URLSearchParams({ action, ...query }),
@@ -383,27 +422,246 @@ test("archiving a group blocks descendant content and file access", async () => 
   await reject(call(e, alice, "messages", undefined, { room: c.id }), 403);
 });
 
-test('storage administration excludes other peoples DMs and abandoned uploads are reclaimed', async()=>{
- const e=setup(),dm=await call(e,alice,'dm',{members:[bob.email]});
- const file=await call(e,alice,'upload-start',{room:dm.id,name:'private.zip',size:10});
- assert.equal((await call(e,owner,'files')).files.length,0);
- await reject(call(e,owner,'file-remove',{id:file.id}),403);
- e.DB_PROJECT_BOARD.sql.prepare("UPDATE chat_files SET created='2020-01-01' WHERE id=?").run(file.id);
- await cleanChatFiles(e);
- assert.equal(e.DB_PROJECT_BOARD.sql.prepare('SELECT status FROM chat_files WHERE id=?').get(file.id).status,'aborted');
- assert.equal(e.uploads.size,0);
+test("storage administration excludes other peoples DMs and abandoned uploads are reclaimed", async () => {
+  const e = setup(),
+    dm = await call(e, alice, "dm", { members: [bob.email] });
+  const file = await call(e, alice, "upload-start", {
+    room: dm.id,
+    name: "private.zip",
+    size: 10,
+  });
+  assert.equal((await call(e, owner, "files")).files.length, 0);
+  await reject(call(e, owner, "file-remove", { id: file.id }), 403);
+  e.DB_PROJECT_BOARD.sql
+    .prepare("UPDATE chat_files SET created='2020-01-01' WHERE id=?")
+    .run(file.id);
+  await cleanChatFiles(e);
+  assert.equal(
+    e.DB_PROJECT_BOARD.sql
+      .prepare("SELECT status FROM chat_files WHERE id=?")
+      .get(file.id).status,
+    "aborted",
+  );
+  assert.equal(e.uploads.size, 0);
 });
-test('custom messaging administrators cannot gain workspace roles or open other peoples DMs', async()=>{
- const e=setup(),role=await call(e,owner,'role',{name:'Chat moderator',manage:true});
- await call(e,owner,'membership',{email:bob.email,roles:[role.id]});
- const identity=await chatIdentity(e,bob);assert.equal(identity.chatAdmin,true);assert.equal(identity.admin,false);
- const channel=await call(e,bob,'room',{name:'Managed',kind:'channel',parentId:'team',roles:[]});assert.ok(channel.id);
- const dm=await call(e,alice,'dm',{members:[owner.email]});await reject(call(e,bob,'messages',undefined,{room:dm.id}),403);
- assert.equal(e.DB_PROJECT_BOARD.sql.prepare('SELECT role FROM workspace_members WHERE email=?').get(bob.email).role,'sales');
+test("custom messaging administrators cannot gain workspace roles or open other peoples DMs", async () => {
+  const e = setup(),
+    role = await call(e, owner, "role", {
+      name: "Chat moderator",
+      manage: true,
+    });
+  await call(e, owner, "membership", { email: bob.email, roles: [role.id] });
+  const identity = await chatIdentity(e, bob);
+  assert.equal(identity.chatAdmin, true);
+  assert.equal(identity.admin, false);
+  const channel = await call(e, bob, "room", {
+    name: "Managed",
+    kind: "channel",
+    parentId: "team",
+    roles: [],
+  });
+  assert.ok(channel.id);
+  const dm = await call(e, alice, "dm", { members: [owner.email] });
+  await reject(call(e, bob, "messages", undefined, { room: dm.id }), 403);
+  assert.equal(
+    e.DB_PROJECT_BOARD.sql
+      .prepare("SELECT role FROM workspace_members WHERE email=?")
+      .get(bob.email).role,
+    "sales",
+  );
 });
 
-test('configured workspace owner is contactable without a separate employee record',async()=>{
- const e=setup();e.ADMIN_EMAILS=owner.email;e.DB_PROJECT_BOARD.sql.prepare('DELETE FROM workspace_members WHERE email=?').run(owner.email);
- assert.ok((await call(e,bob,'bootstrap')).people.some(p=>p.email===owner.email));
- const dm=await call(e,bob,'dm',{members:[owner.email]});assert.ok((await call(e,owner,'messages',undefined,{room:dm.id})).members.includes(owner.email));
+test("configured workspace owner is contactable without a separate employee record", async () => {
+  const e = setup();
+  e.ADMIN_EMAILS = owner.email;
+  e.DB_PROJECT_BOARD.sql
+    .prepare("DELETE FROM workspace_members WHERE email=?")
+    .run(owner.email);
+  assert.ok(
+    (await call(e, bob, "bootstrap")).people.some(
+      (p) => p.email === owner.email,
+    ),
+  );
+  const dm = await call(e, bob, "dm", { members: [owner.email] });
+  assert.ok(
+    (
+      await call(e, owner, "messages", undefined, { room: dm.id })
+    ).members.includes(owner.email),
+  );
+});
+
+async function memberSave(e, b, u = owner) {
+  return (
+    await membersApi(
+      new Request("https://api/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(b),
+      }),
+      { ...e, ADMIN_EMAILS: owner.email },
+      u,
+    )
+  ).json();
+}
+async function roleSave(e, b) {
+  return (
+    await rolesApi(
+      new Request("https://api/roles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(b),
+      }),
+      { ...e, ADMIN_EMAILS: owner.email },
+      owner,
+    )
+  ).json();
+}
+test("People combines tools and channel memberships from multiple roles and revokes removed roles", async () => {
+  const e = setup(),
+    db = e.DB_PROJECT_BOARD.sql;
+  db.exec(
+    "INSERT INTO workspace_roles VALUES('sales','[\"tasks\"]',1,'now','test');INSERT INTO workspace_roles VALUES('marketing','[\"inventory\"]',1,'now','test')",
+  );
+  const sales = await call(e, owner, "room", {
+      name: "Sales",
+      kind: "channel",
+      parentId: "team",
+      private: true,
+      roles: ["sales"],
+    }),
+    marketing = await call(e, owner, "room", {
+      name: "Marketing",
+      kind: "channel",
+      parentId: "team",
+      private: true,
+      roles: ["marketing"],
+    });
+  await memberSave(e, {
+    email: alice.email,
+    roles: ["sales", "marketing"],
+    tools: [],
+    enabled: true,
+    revision: 1,
+  });
+  const access = await (
+    await import("../role-access.mjs")
+  ).effectiveAccess(
+    e.DB_PROJECT_BOARD,
+    db
+      .prepare("SELECT * FROM workspace_members WHERE email=?")
+      .get(alice.email),
+  );
+  assert.deepEqual(new Set(access.tools), new Set(["tasks", "inventory"]));
+  const rooms = (await call(e, alice, "bootstrap")).rooms;
+  assert.ok(rooms.some((r) => r.id === sales.id));
+  assert.ok(rooms.some((r) => r.id === marketing.id));
+  await roleSave(e, { id: "marketing", revision: 1, tools: ["calendar"] });
+  const m = db
+    .prepare("SELECT * FROM workspace_members WHERE email=?")
+    .get(alice.email);
+  assert.deepEqual(
+    new Set(JSON.parse(m.tools)),
+    new Set(["tasks", "calendar"]),
+  );
+  await reject(
+    memberSave(e, {
+      email: alice.email,
+      roles: ["sales"],
+      tools: [],
+      enabled: true,
+      revision: 2,
+    }),
+    409,
+  );
+  await memberSave(e, {
+    email: alice.email,
+    roles: ["sales"],
+    tools: [],
+    enabled: true,
+    revision: m.revision,
+  });
+  await reject(
+    call(e, alice, "messages", undefined, { room: marketing.id }),
+    403,
+  );
+});
+test("new shared roles create private channels and channel permission editing is revision-safe", async () => {
+  const e = setup(),
+    created = await roleSave(e, {
+      name: "Operations",
+      tools: ["tasks"],
+      channels: [],
+    });
+  const id = created.role.id,
+    cid = "role-" + id;
+  await memberSave(e, {
+    email: alice.email,
+    roles: [id],
+    tools: [],
+    enabled: true,
+    revision: 1,
+  });
+  assert.ok(
+    (await call(e, alice, "bootstrap")).rooms.some((c) => c.id === cid),
+  );
+  assert.ok(!(await call(e, bob, "bootstrap")).rooms.some((c) => c.id === cid));
+  await reject(
+    roleSave(e, {
+      id,
+      revision: 1,
+      name: "Operations",
+      tools: ["tasks"],
+      channels: [],
+      channelRevisions: { [cid]: 0 },
+    }),
+    409,
+  );
+  await roleSave(e, {
+    id,
+    revision: 1,
+    name: "Operations",
+    tools: ["tasks"],
+    channels: [],
+    channelRevisions: { [cid]: 1 },
+  });
+  await reject(call(e, alice, "messages", undefined, { room: cid }), 403);
+  const raw = new Request("https://api/messaging?action=membership", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: alice.email, roles: [] }),
+  });
+  await reject(messagingApi(raw, e, owner), 403);
+});
+test("secondary privileged roles require owner approval and remain protected from delegated management", async () => {
+  const e = setup();
+  await reject(
+    memberSave(
+      e,
+      {
+        email: bob.email,
+        roles: ["sales", "managing-director"],
+        tools: [],
+        enabled: true,
+        revision: 1,
+      },
+      { ...alice, admin: true },
+    ),
+    403,
+  );
+  const saved = await memberSave(e, {
+    email: bob.email,
+    roles: ["sales", "managing-director"],
+    tools: [],
+    enabled: true,
+    revision: 1,
+  });
+  assert.equal(saved.member.role, "managing-director");
+  await reject(
+    memberSave(
+      e,
+      { email: bob.email, action: "remove", revision: 2 },
+      { ...alice, admin: true },
+    ),
+    403,
+  );
 });
