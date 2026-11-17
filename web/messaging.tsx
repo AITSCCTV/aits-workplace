@@ -1197,8 +1197,8 @@ function Chat() {
               <nav className="chat-admin-tabs">
                 <a href={w.AITS_CONFIG.base + "admin/?tab=roles"}>
                   {t(
-                    "บทบาทและสิทธิ์ใน People",
-                    "Roles & permissions in People",
+                    "บทบาทและสิทธิ์ใน Access",
+                    "Roles & permissions in Access",
                   )}{" "}
                   ↗
                 </a>

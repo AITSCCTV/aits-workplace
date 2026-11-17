@@ -589,7 +589,7 @@ function People() {
     <div className="people-hub" data-no-translate>
       <header className="people-heading">
         <p className="eyebrow">AITS / TEAM</p>
-        <h1>{t("ผู้ใช้", "People")}</h1>
+        <h1>{t("สิทธิ์การเข้าถึง", "Access")}</h1>
         <nav
           className="people-tabs"
           aria-label={t("การตั้งค่าทีม", "Team settings")}

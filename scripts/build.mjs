@@ -11,7 +11,7 @@ const config=JSON.parse(await readFile('config/runtime.json','utf8'));
 const original={workplace:'https://aits-workplace.aitscctv.chatgpt.site',inventory:'https://aits-inventory.aitscctv.chatgpt.site','project-board':'https://aits-project-board.aitscctv.chatgpt.site','design-studio':'https://aits-design-studio.aitscctv.chatgpt.site'};
 const local={workplace:base,inventory:base+'inventory/','project-board':base+'project-board/','design-studio':base+'design-studio/'};
 function links(text){for(const key of Object.keys(original))text=text.replaceAll(original[key],local[key].replace(/\/$/,''));return text;}
-await cp('web/workspace.css',out+'/workspace.css');await cp('web/shell.js',out+'/shell.js');await cp('web/login.js',out+'/login.js');await cp('web/login.css',out+'/login.css');
+await cp('web/workspace.css',out+'/workspace.css');await build({entryPoints:['web/shell.js'],outfile:out+'/shell.js',bundle:true,minify:true,format:'iife',target:'es2022'});await cp('web/login.js',out+'/login.js');await cp('web/login.css',out+'/login.css');
 const runtime=await readFile('web/runtime.js','utf8');
 await writeFile(out+'/runtime.js',runtime);
 const english=JSON.parse(await readFile('web/i18n/en.json','utf8'));
@@ -72,7 +72,7 @@ await writeFile(out+'/content-studio/index.html',inject(`<!doctype html><html la
 
 await build({entryPoints:['web/admin.tsx'],outfile:out+'/assets/admin.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/admin',{recursive:true});
-await writeFile(out+'/admin/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>People · AITS</title><link rel="stylesheet" href="${base}assets/admin.css"></head><body><div id="app"></div><script type="module" src="${base}assets/admin.js"></script></body></html>`,'workplace'));
+await writeFile(out+'/admin/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Access · AITS</title><link rel="stylesheet" href="${base}assets/admin.css"></head><body><div id="app"></div><script type="module" src="${base}assets/admin.js"></script></body></html>`,'workplace'));
 
 // Load the shared tool treatment last, after each independent tool stylesheet.
 await cp('web/tools.css',out+'/tools.css');
@@ -88,7 +88,7 @@ await writeFile(out+'/assistant/index.html',inject(`<!doctype html><html lang="t
 await cp('web/assistant.css',out+'/assistant.css');
 
 await mkdir(out+'/roles',{recursive:true});
-await writeFile(out+'/roles/index.html',`<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${base}admin/?tab=roles"><title>People · AITS</title></head><body><a href="${base}admin/?tab=roles">Roles &amp; permissions</a><script>location.replace(${JSON.stringify(base+'admin/?tab=roles')})</script></body></html>`);
+await writeFile(out+'/roles/index.html',`<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${base}admin/?tab=roles"><title>Access · AITS</title></head><body><a href="${base}admin/?tab=roles">Roles &amp; permissions</a><script>location.replace(${JSON.stringify(base+'admin/?tab=roles')})</script></body></html>`);
 
 await build({entryPoints:['web/weeklybrief.tsx'],outfile:out+'/assets/weeklybrief.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/weeklybrief',{recursive:true});
@@ -103,3 +103,7 @@ await build({entryPoints:['web/messaging.tsx'],outfile:out+'/assets/messaging.js
 await mkdir(out+'/messaging',{recursive:true});
 await cp('web/chat-files-sw.js',out+'/messaging/files-sw.js');
 await writeFile(out+'/messaging/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Team Chat | AITS</title><link rel="stylesheet" href="${base}assets/messaging.css"></head><body><div id="app"></div><script type="module" src="${base}assets/messaging.js"></script></body></html>`,'project-board'));
+
+await build({entryPoints:['web/navigation.tsx'],outfile:out+'/assets/navigation.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
+await mkdir(out+'/navigation',{recursive:true});
+await writeFile(out+'/navigation/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Navigation · AITS</title><link rel="stylesheet" href="${base}assets/navigation.css"></head><body><div id="app"></div><script type="module" src="${base}assets/navigation.js"></script></body></html>`,'workplace'));
