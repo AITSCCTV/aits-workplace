@@ -12,7 +12,7 @@ const text=(x,n=600)=>typeof x==='string'?x.slice(0,n)+(x.length>n?'…':''):'';
 export function summarizeBoard(rows,history,people,now=new Date()){
  const period=briefPeriod(now),tasks=rows.map(r=>{const d=parse(r.data);return {id:r.id,title:text(d.title,300),owner:text(d.owner,200),status:text(d.status,30),due:text(d.due,10),priority:text(d.priority,40),reason:text(d.evidence),next:text(d.next),updated:r.updated};});
  const completed=new Map();
- for(const h of history){const d=parse(h.data);if(h.at>=period.from&&h.at<period.to&&d.before&&typeof d.before.status==='string'&&d.before.status!=='done'&&d.after?.status==='done'){completed.set(h.task_id,{id:h.task_id,title:text(d.after.title,300),owner:text(d.after.owner,200),completedAt:h.at});}}
+ for(const h of history){const d=parse(h.data);if(h.at>=period.from&&h.at<period.to&&((d.before&&typeof d.before.status==='string'&&d.before.status!=='done')||(!d.before&&d.source==='project-management'))&&d.after?.status==='done'){completed.set(h.task_id,{id:h.task_id,title:text(d.after.title,300),owner:text(d.after.owner,200),completedAt:h.at});}}
  const unfinished=tasks.filter(t=>t.status!=='done'),overdue=unfinished.filter(t=>/^\d{4}-\d{2}-\d{2}$/.test(t.due)&&t.due<period.today),issues=unfinished.filter(t=>['waiting','uncertain'].includes(t.status));
  const norm=x=>x.trim().toLowerCase(),roster=people.map(p=>({...p,aliases:[p.email,p.label,...parse(p.aliases)].map(norm),assigned:[],outstanding:[],completed:[]}));
  const unassigned=[],unmatched=[];

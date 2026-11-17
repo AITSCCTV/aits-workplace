@@ -94,3 +94,8 @@ await writeFile(out+'/roles/index.html',inject(`<!doctype html><html lang="th"><
 await build({entryPoints:['web/weeklybrief.tsx'],outfile:out+'/assets/weeklybrief.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/weeklybrief',{recursive:true});
 await writeFile(out+'/weeklybrief/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WeeklyBrief AI · AITS</title><link rel="stylesheet" href="${base}assets/weeklybrief.css"></head><body><div id="app"></div><script type="module" src="${base}assets/weeklybrief.js"></script></body></html>`,'project-board'));
+
+await build({entryPoints:['web/project-management.tsx'],outfile:out+'/assets/project-management.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
+await mkdir(out+'/project-management',{recursive:true});
+await writeFile(out+'/project-management/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Project Management · AITS</title><link rel="stylesheet" href="${base}assets/project-management.css"></head><body><div id="app"></div><script type="module" src="${base}assets/project-management.js"></script></body></html>`,'project-board'));
+await cp('web/pm-guidance',out+'/project-management/guidance',{recursive:true});

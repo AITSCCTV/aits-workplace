@@ -34,7 +34,7 @@ export async function authenticate(request,env,keys){
  if(member?.revoked_before&&!payload.sessionHash&&payload.iat<=member.revoked_before)throw new HttpError(401,'Sign-in expired. Please sign in again.');
  if(!owner&&!(member?member.enabled:team.includes(email)))throw new HttpError(403,'This account is not authorized for AITS.');
  const admin=owner||isPrivilegedRole(member?.role);
- return {id:owner?payload.sub:'workspace:'+email,email,admin,owner,role:owner?'owner':member?.role||'custom',token,tools:admin?[]:member?JSON.parse(member.tools):['forms'],sessionHash:payload.sessionHash,mustChangePassword:!!payload.mustChangePassword};
+ return {id:owner?payload.sub:'workspace:'+email,email,admin,owner,employee:owner||!!member,role:owner?'owner':member?.role||'custom',token,tools:admin?[]:member?JSON.parse(member.tools):['forms'],sessionHash:payload.sessionHash,mustChangePassword:!!payload.mustChangePassword};
 }
 export function authorize(user,app,path,method){
  if(user.admin)return;

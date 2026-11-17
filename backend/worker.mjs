@@ -1,3 +1,4 @@
+import {projectManagementApi} from './project-management.mjs';
 import {weeklyBriefApi,scheduledBrief} from './weeklybrief.mjs';
 import {rolesApi} from './role-settings.mjs';
 import {assistantApi} from './assistant.mjs';
@@ -50,6 +51,7 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
    return finish(new Response(html,{headers:{'Content-Type':'text/html;charset=utf-8','Content-Security-Policy':`default-src 'none'; script-src 'nonce-${nonce}'; frame-ancestors 'none'; base-uri 'none'`}}));
   }
   if(url.pathname==='/auth/me'&&request.method==='GET'){if(!user.token)throw new HttpError(403,'Workspace sign-in is required.');return finish(json(sessionInfo(user)));}
+  if(url.pathname==='/project-board/api/project-management'){const body=await limitedBody(request,32_000);return finish(await projectManagementApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
   if(url.pathname==='/project-board/api/weeklybrief'){const body=await limitedBody(request,4096);return finish(await weeklyBriefApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
   if(url.pathname==='/project-board/api/roles'){const body=await limitedBody(request,16_000);return finish(await rolesApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
   if(url.pathname==='/project-board/api/members'){const body=await limitedBody(request,16_000);return finish(await membersApi(new Request(url.href,{method:request.method,headers:request.headers,body}),env,user));}
