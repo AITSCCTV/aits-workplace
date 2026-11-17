@@ -19,7 +19,7 @@
     return new Promise((resolve,reject)=>{const channel=new MessageChannel(),timeout=setTimeout(()=>reject(Error('Secure download timed out.')),10000);channel.port1.onmessage=e=>{clearTimeout(timeout);resolve(e.data.url)};worker.postMessage({type:'chat-file',url:target.href,token:session.token,name,mime,inline},[channel.port2])});
   };
   account.auth=async(path,data)=>{const response=await originalFetch(new URL(path,api),{method:'POST',headers:{'Content-Type':'application/json',...(session?.token?{Authorization:'Bearer '+session.token}:{})},body:JSON.stringify(data),credentials:'omit',redirect:'error'});const result=await response.json();if(!response.ok)throw Error(result.error||'Unable to sign in.');return result;};
-  account.accept=value=>{session={token:value.token,email:value.email};sessionStorage.setItem(key,JSON.stringify(session));location.reload();};
+  account.accept=value=>{session={token:value.token,email:value.email};sessionStorage.setItem(key,JSON.stringify(session));location.replace(config.base+'navigation/');};
   account.clear=()=>{navigator.serviceWorker?.controller?.postMessage({type:'chat-clear'});session=null;sessionStorage.removeItem(key);location.reload();};
   account.options=api?originalFetch(new URL('/auth/options',api),{credentials:'omit'}).then(r=>r.json()).catch(()=>({password:false,google:false})):Promise.resolve({password:false,google:false});
   account.ready=(async()=>{
@@ -40,7 +40,7 @@
     const headers=new Headers(source.headers);headers.set('Authorization','Bearer '+session.token);
     const response=await originalFetch(target,{method:source.method,headers,body:['GET','HEAD'].includes(source.method)?undefined:await source.arrayBuffer(),signal:source.signal,credentials:'omit',redirect:'error'});
     if(window.AITS_I18N&&response.headers.get('content-type')?.includes('application/json'))try{window.AITS_I18N.protectData(await response.clone().json());}catch{}
-    if(response.status===401){session=null;sessionStorage.removeItem(key);window.dispatchEvent(new Event('aits-auth-expired'));}
+    if(response.status===401){identity=null;session=null;sessionStorage.removeItem(key);window.dispatchEvent(new Event('aits-auth-expired'));}
     return response;
   };
   document.addEventListener('DOMContentLoaded',()=>{
@@ -61,7 +61,7 @@
         if(e.origin!==api.origin||e.source!==popup||e.data?.type!=='aits-login'||e.data.state!==state)return;
         if(typeof e.data.token!=='string'||typeof e.data.email!=='string')return;
         window.removeEventListener('message',receive);clearTimeout(timeout);
-        session={token:e.data.token,email:e.data.email};sessionStorage.setItem(key,JSON.stringify(session));location.reload();
+        account.accept(e.data);
       };
       window.addEventListener('message',receive);
       const timeout=setTimeout(()=>{window.removeEventListener('message',receive);status.textContent='Sign-in timed out. Please try again.';},300000);

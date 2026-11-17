@@ -29,3 +29,17 @@ test('configured API preserves method, body, and query when routed to backend',a
  await window.fetch('https://aitscctv.github.io/api/projects?id=abc',{method:'POST',body:'data'});
  assert.equal(requests[0][0].href,'https://backend.example/api/projects?id=abc');assert.ok(requests[0][1].body);assert.equal(requests[0][1].method,'POST');assert.equal(requests[0][1].credentials,'omit');
 });
+test('successful sign-in lands on Navigation while existing sessions preserve deep links',async()=>{
+ const redirects=[],stored=new Map();const window={dispatchEvent(){},AITS_CONFIG:{base:'/aits-workplace/',app:'project-board',apiOrigin:'https://backend.example'},fetch:()=>Promise.resolve(new Response('{}'))};
+ vm.runInNewContext(await readFile('web/runtime.js','utf8'),{window,URL,Response,Request,Headers,Event,sessionStorage:{getItem:k=>stored.get(k),setItem:(k,v)=>stored.set(k,v)},location:{href:'https://aitscctv.github.io/aits-workplace/project-board/',origin:'https://aitscctv.github.io',replace:url=>redirects.push(url)},document:{addEventListener(){}}});
+ await window.AITS_SESSION.ready;assert.deepEqual(redirects,[]);
+ window.AITS_SESSION.accept({token:'test-session',email:'employee@example.com'});
+ assert.deepEqual(redirects,['/aits-workplace/navigation/']);assert.equal(JSON.parse(stored.get('aits-session:https://backend.example')).token,'test-session');
+});
+test('navigation tools follow assigned permissions and restrict Access to admins',async()=>{
+ const {navigationItems,additionalNavigation,canNavigate}=await import('../web/navigation-catalog.mjs');
+ const employee={info:()=>({admin:false}),can:tool=>['messaging','project-management'].includes(tool)};
+ const visible=[...navigationItems,...additionalNavigation].filter(item=>canNavigate(item,employee)).map(item=>item.en);
+ assert.deepEqual(visible,['Navigation','Overview','Team Chat','Project Management']);
+ const admin={info:()=>({admin:true}),can:()=>true};assert(navigationItems.every(item=>canNavigate(item,admin)));
+});
