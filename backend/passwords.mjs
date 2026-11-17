@@ -6,7 +6,7 @@ const digest=value=>createHash('sha256').update(value).digest('hex');
 const derive=(password,salt)=>{try{return scryptSync(password,salt,32,{N:32768,r:8,p:3,maxmem:64*1024*1024}).toString('hex')}catch(e){throw new HttpError(503,'Password hashing unavailable: '+(e.code||e.name||'runtime_error'));}};
 const now=()=>Math.floor(Date.now()/1000);
 export function validatePassword(password){
- if(typeof password!=='string'||password.length<15||password.length>128||!password.trim()||/^(.)\1+$/.test(password)||['passwordpassword','123456789012345','abcdefghijklmnop'].includes(password.toLowerCase()))throw new HttpError(400,'Use a unique password of 15–128 characters.');
+ if(typeof password!=='string'||password.length<8||password.length>30||!password.trim()||/^(.)\1+$/.test(password)||['passwordpassword','123456789012345','abcdefghijklmnop'].includes(password.toLowerCase()))throw new HttpError(400,'Use a unique password of 8–30 characters.');
 }
 async function body(request){if(!request.headers.get('content-type')?.startsWith('application/json'))throw new HttpError(415,'JSON is required.');try{return await request.json()}catch{throw new HttpError(400,'Invalid JSON.');}}
 async function limit(db,key,max,seconds){

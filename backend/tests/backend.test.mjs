@@ -103,7 +103,7 @@ test('password accounts require first-login change, preserve tool restrictions a
  assert.equal((await live.fetch(req('/project-board/api/tasks','GET',undefined,headers),e)).status,403);
  assert.equal((await live.fetch(req('/auth/studio/floorplan','GET',undefined,headers),e)).status,403);
  assert.equal((await live.fetch(req('/auth/password/change','POST',{currentPassword:temporary,password:'short'},headers),e)).status,400);
- const password='Unique test password only 7932!';
+ const password='Qa73!p2z';
  assert.equal((await live.fetch(req('/auth/password/change','POST',{currentPassword:temporary,password},headers),e)).status,200);
  assert.equal((await live.fetch(req('/auth/me','GET',undefined,headers),e)).status,401);
  const signed=await(await live.fetch(req('/auth/password/login','POST',{email,password}),e)).json();assert.equal(signed.mustChangePassword,false);
@@ -279,4 +279,11 @@ test('Studio routes use server-verified identities and the bound service, preser
  const teamWorker=createWorker(async()=>({...admin,admin:false}));assert.equal((await teamWorker.fetch(req('/project-board/api/staff/admin/content-studio/drafts'),e)).status,403);assert.equal(calls,1);
  assert.equal((await teamWorker.fetch(req('/auth/studio/floorplan'),e)).status,403);
  const bridgeWorker=createWorker(async()=>({...admin,token:null}));assert.equal((await bridgeWorker.fetch(req('/auth/studio/content'),e)).status,403);
+});
+
+test('new passwords accept 8 and 30 characters and reject outside the bounds',async()=>{
+ const {validatePassword}=await import('../passwords.mjs');
+ assert.doesNotThrow(()=>validatePassword('Qa73!p2z'));
+ assert.doesNotThrow(()=>validatePassword('Qa73!p2z'.repeat(3)+'A9!b2x'));
+ for(const value of ['Qa73!p2','Qa73!p2z'.repeat(4)])assert.throws(()=>validatePassword(value),e=>e.status===400&&e.message.includes('8–30'));
 });
