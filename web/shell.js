@@ -7,7 +7,7 @@
  routes.push(['weeklybrief/','สรุปประชุมประจำสัปดาห์','WeeklyBrief AI','M4 4h16v17H4zM8 2v4m8-4v4M4 9h16M8 13h8m-8 4h5']);
  const visible=r=>!r[0]||(['admin/','roles/'].includes(r[0])?window.AITS_SESSION.info()?.admin:window.AITS_SESSION.can(routeTool(r[0])));
  const t=(th,en)=>window.AITS_I18N.language()==='en'?en:th;
- const icon=path=>path==='M8 4h8M12 2v2M5 7h14v13H5zM2 11v5m20-5v5M9 11v2m6-2v2M9 17h6'?'<img src="'+base+'brand/aits-icon.svg" width="24" height="24" alt="" aria-hidden="true">':path==='M4 4h16v13H9l-5 4zM8 8h8m-8 4h5'?'<img class="aits-line-icon" src="'+base+'brand/line-icon.png" width="24" height="24" alt="" aria-hidden="true">':'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="'+path+'"/></svg>';
+ const icon=path=>path==='M4 4h16v13H9l-5 4zM8 8h8m-8 4h5'?'<img class="aits-line-icon" src="'+base+'brand/line-icon.png" width="24" height="24" alt="" aria-hidden="true">':'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="'+path+'"/></svg>';
  document.addEventListener('DOMContentLoaded',()=>{
   document.body.classList.add('aits-ui');try{document.body.classList.toggle('aits-nav-expanded',localStorage.getItem('aits-nav-expanded')==='true')}catch{}document.body.dataset.aitsApp=config.app;
   const sidebar=document.createElement('nav');sidebar.className='aits-sidebar';sidebar.dataset.noTranslate='';
