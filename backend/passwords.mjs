@@ -1,3 +1,4 @@
+import {isPrivilegedRole} from './roles.mjs';
 import {scryptSync,timingSafeEqual,randomBytes,createHash} from 'node:crypto';
 import {HttpError} from './auth.mjs';
 import {ownerEmails} from './members.mjs';
@@ -61,13 +62,13 @@ export async function passwordApi(request,env,user){
   if(!user.admin||!user.token)throw new HttpError(403,'Administrator access is required.');
   const b=await body(request),email=typeof b?.email==='string'?b.email.trim().toLowerCase():'';
   const member=await db.prepare('SELECT role,enabled FROM workspace_members WHERE email=?').bind(email).first();
-  if(ownerEmails(env).includes(email)||email===user.email||(!user.owner&&member?.role==='admin'))throw new HttpError(403,'This administrator account is protected.');
+  if(ownerEmails(env).includes(email)||email===user.email||(!user.owner&&isPrivilegedRole(member?.role)))throw new HttpError(403,'This administrator account is protected.');
   if(!member?.enabled)throw new HttpError(400,'Save and enable the employee account first.');
   await limit(db,'global',200,3600);
   await limit(db,'reset:'+digest(user.email),20,3600);
   const password=randomBytes(18).toString('base64url'),salt=randomBytes(24).toString('hex'),hash=derive(password,salt),at=new Date().toISOString();
   const result=await db.batch([
-   db.prepare("INSERT INTO workspace_passwords(email,salt,hash,must_change,temporary_expires,revision,updated_at) SELECT ?,?,?,1,?,1,? WHERE EXISTS(SELECT 1 FROM workspace_members WHERE email=? AND enabled=1 AND (role!='admin' OR ?=1)) ON CONFLICT(email) DO UPDATE SET salt=excluded.salt,hash=excluded.hash,must_change=1,temporary_expires=excluded.temporary_expires,revision=revision+1,updated_at=excluded.updated_at").bind(email,salt,hash,now()+86400,at,email,+!!user.owner),
+   db.prepare("INSERT INTO workspace_passwords(email,salt,hash,must_change,temporary_expires,revision,updated_at) SELECT ?,?,?,1,?,1,? WHERE EXISTS(SELECT 1 FROM workspace_members WHERE email=? AND enabled=1 AND (role NOT IN ('admin','managing-director') OR ?=1)) ON CONFLICT(email) DO UPDATE SET salt=excluded.salt,hash=excluded.hash,must_change=1,temporary_expires=excluded.temporary_expires,revision=revision+1,updated_at=excluded.updated_at").bind(email,salt,hash,now()+86400,at,email,+!!user.owner),
    db.prepare('DELETE FROM workspace_sessions WHERE email=? AND EXISTS(SELECT 1 FROM workspace_passwords WHERE email=? AND updated_at=?)').bind(email,email,at),
    db.prepare('INSERT INTO workspace_member_audit(id,email,actor,before_data,after_data,at) SELECT ?,?,?,NULL,?,? WHERE EXISTS(SELECT 1 FROM workspace_passwords WHERE email=? AND updated_at=?)').bind(crypto.randomUUID(),email,user.email,JSON.stringify({action:'reset_temporary_password'}),at,email,at)
   ]);

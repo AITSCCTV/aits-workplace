@@ -15,6 +15,21 @@ const req=(path,method='GET',body,extra={})=>new Request('https://api.example'+p
 const admin={id:'verified-owner',email:'info@aitscctv.com',admin:true,token:'signed-token'};
 const worker=createWorker(async()=>admin);
 
+test('company roles preserve director protection and keep operational administrators scoped',async()=>{
+ const e=environment(),path='/project-board/api/members';
+ const roles=(await(await worker.fetch(req(path),e)).json()).roles;
+ assert.deepEqual(roles.map(r=>r.id),['managing-director','sales','administrator','marketing','network-engineer','programmer','foreman','hr','accountant']);
+ for(const role of roles){assert.equal((await worker.fetch(req(path,'POST',{email:role.id+'@example.com',role:role.id,tools:role.tools||[],enabled:true,revision:0}),e)).status,200);}
+ const {privateKey,publicKey}=await generateKeyPair('RS256');
+ async function identity(email){const jwt=await new SignJWT({email}).setProtectedHeader({alg:'RS256'}).setSubject(email).setIssuedAt().setExpirationTime('1h').setIssuer(e.TEAM_DOMAIN).setAudience(e.POLICY_AUD).sign(privateKey);return authenticate(req('/auth/me','GET',undefined,{Authorization:'Bearer '+jwt}),e,publicKey);}
+ const director=await identity('managing-director@example.com');assert.equal(director.admin,true);assert.equal(director.owner,false);
+ const office=await identity('administrator@example.com');assert.equal(office.admin,false);assert.ok(office.tools.includes('tasks'));
+ const delegated=createWorker(async()=>director);
+ for(const action of [{email:'new@example.com',role:'managing-director',tools:[],enabled:true,revision:0},{email:director.email,action:'remove',revision:1}])assert.equal((await delegated.fetch(req(path,'POST',action),e)).status,403);
+ assert.equal((await delegated.fetch(req('/project-board/api/member-password','POST',{email:director.email}),e)).status,403);
+ assert.equal((await createWorker(async()=>office).fetch(req(path),e)).status,403);
+});
+
 test('removal revokes Google and password sessions, preserves work and cannot revive stale access on re-add',async()=>{
  const e=environment(),email='remove@aits.local',path='/project-board/api/members';e.PASSWORD_LOGIN_ENABLED='true';
  e.DB_LINE_ARCHIVE={prepare:()=>({bind:()=>({all:async()=>({results:[]})})})};

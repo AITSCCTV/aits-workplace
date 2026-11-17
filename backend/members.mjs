@@ -1,4 +1,4 @@
-import {rolePresets} from './roles.mjs';
+import {rolePresets,isPrivilegedRole} from './roles.mjs';
 import {HttpError} from './auth.mjs';
 export const toolsCatalog=[
  ['assistant','ผู้ช่วย AI','AI assistant',[]],['crm','ข้อมูลลูกค้า AI','AI customer records',[]],['prices','ราคาสินค้า AI','AI price list',[]],['quotations','ใบเสนอราคา AI','AI quotations',[]],['calendar-write','สร้างกิจกรรมผ่าน AI','Create calendar events',['calendar']],
@@ -19,7 +19,7 @@ export async function membersApi(request,env,user){
  if(!user.admin||!user.token)throw new HttpError(403,'Only the workspace owner can manage employee access.');
  const db=env.DB_PROJECT_BOARD,owner=ownerEmails(env).includes(user.email);
 
- if(request.method==='GET')return Response.json({owner,passwordLoginEnabled:env.PASSWORD_LOGIN_ENABLED==='true',roles:rolePresets.filter(r=>owner||r.id!=='admin'),loginReady:env.EMPLOYEE_LOGIN_READY==='true',owners:ownerEmails(env),catalog:toolsCatalog,members:(await db.prepare('SELECT * FROM workspace_members WHERE removed_at IS NULL ORDER BY email LIMIT 501').all()).results.map(decode)});
+ if(request.method==='GET')return Response.json({owner,passwordLoginEnabled:env.PASSWORD_LOGIN_ENABLED==='true',roles:rolePresets.filter(r=>!r.legacy&&(owner||!isPrivilegedRole(r.id))),loginReady:env.EMPLOYEE_LOGIN_READY==='true',owners:ownerEmails(env),catalog:toolsCatalog,members:(await db.prepare('SELECT * FROM workspace_members WHERE removed_at IS NULL ORDER BY email LIMIT 501').all()).results.map(decode)});
  if(request.method!=='POST')throw new HttpError(405,'POST is required.');
  if(!request.headers.get('content-type')?.startsWith('application/json'))throw new HttpError(415,'JSON is required.');
  let b;try{b=await request.json()}catch{throw new HttpError(400,'Invalid JSON.');}
@@ -27,7 +27,7 @@ export async function membersApi(request,env,user){
  if(email.length>254||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new HttpError(400,'Enter a valid employee email.');
  if(ownerEmails(env).includes(email))throw new HttpError(403,'Owner access cannot be changed here.');
  const before=await db.prepare('SELECT * FROM workspace_members WHERE email=?').bind(email).first();
- if(!owner&&(before?.role==='admin'||email===user.email))throw new HttpError(403,'Only the owner can change administrator accounts.');
+ if(!owner&&(isPrivilegedRole(before?.role)||email===user.email))throw new HttpError(403,'Only the owner can change administrator accounts.');
  if(b.action==='remove'){
   if(!Number.isInteger(b.revision)||!before||before.removed_at||before.revision!==b.revision)throw new HttpError(409,'Access changed. Reload and review before removing.');
   const at=new Date().toISOString(),auditId=crypto.randomUUID();
@@ -44,8 +44,8 @@ export async function membersApi(request,env,user){
  if(typeof b.enabled!=='boolean'||!Number.isInteger(b.revision)||b.revision<0||!Array.isArray(b.tools)||b.tools.length>toolsCatalog.length||b.tools.some(t=>!toolsCatalog.some(c=>c.id===t)))throw new HttpError(400,'Invalid permissions.');
  const role=b.role||'custom';
  if(!rolePresets.some(r=>r.id===role))throw new HttpError(400,'Unknown role.');
- if(!owner&&role==='admin')throw new HttpError(403,'Only the owner can assign administrators.');
- const selected=role==='admin'?toolsCatalog.map(t=>t.id).sort():[...new Set(b.tools)].sort();
+ if(!owner&&isPrivilegedRole(role))throw new HttpError(403,'Only the owner can assign administrators.');
+ const selected=isPrivilegedRole(role)?toolsCatalog.map(t=>t.id).sort():[...new Set(b.tools)].sort();
  if(toolsCatalog.some(t=>selected.includes(t.id)&&t.requires.some(id=>!selected.includes(id))))throw new HttpError(400,'LINE review also requires Task board, Projects and LINE archive.');
  if((before&&!before.removed_at?before.revision:0)!==b.revision)throw new HttpError(409,'Access changed. Reload and review before saving.');
  if((!before||before.removed_at)&&(await db.prepare('SELECT count(*) AS n FROM workspace_members WHERE removed_at IS NULL').first()).n>=500)throw new HttpError(400,'Employee limit reached.');
