@@ -72,7 +72,7 @@ await writeFile(out+'/content-studio/index.html',inject(`<!doctype html><html la
 
 await build({entryPoints:['web/admin.tsx'],outfile:out+'/assets/admin.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/admin',{recursive:true});
-await writeFile(out+'/admin/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Employee access · AITS</title><link rel="stylesheet" href="${base}assets/admin.css"></head><body><div id="app"></div><script type="module" src="${base}assets/admin.js"></script></body></html>`,'workplace'));
+await writeFile(out+'/admin/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>People · AITS</title><link rel="stylesheet" href="${base}assets/admin.css"></head><body><div id="app"></div><script type="module" src="${base}assets/admin.js"></script></body></html>`,'workplace'));
 
 // Load the shared tool treatment last, after each independent tool stylesheet.
 await cp('web/tools.css',out+'/tools.css');
@@ -87,9 +87,8 @@ await mkdir(out+'/assistant',{recursive:true});
 await writeFile(out+'/assistant/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AITS AI Assistant</title><link rel="icon" type="image/svg+xml" href="${base}brand/aits-icon.svg?v=${assetVersion}"><link rel="stylesheet" href="${base}tools.css?v=${assetVersion}"><link rel="stylesheet" href="${base}brand.css?v=${assetVersion}"><link rel="stylesheet" href="${base}assistant.css?v=${assetVersion}"></head><body><div id="app"></div><script type="module" src="${base}assets/assistant-page.js"></script></body></html>`,'workplace'));
 await cp('web/assistant.css',out+'/assistant.css');
 
-await build({entryPoints:['web/roles.tsx'],outfile:out+'/assets/roles.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/roles',{recursive:true});
-await writeFile(out+'/roles/index.html',inject(`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Roles · AITS</title><link rel="stylesheet" href="${base}assets/roles.css"></head><body><div id="app"></div><script type="module" src="${base}assets/roles.js"></script></body></html>`,'workplace'));
+await writeFile(out+'/roles/index.html',`<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${base}admin/?tab=roles"><title>People · AITS</title></head><body><a href="${base}admin/?tab=roles">Roles &amp; permissions</a><script>location.replace(${JSON.stringify(base+'admin/?tab=roles')})</script></body></html>`);
 
 await build({entryPoints:['web/weeklybrief.tsx'],outfile:out+'/assets/weeklybrief.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/weeklybrief',{recursive:true});
