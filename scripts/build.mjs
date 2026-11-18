@@ -117,3 +117,16 @@ await finishResponsive(out);
 await build({entryPoints:['web/master-navigation.tsx'],outfile:out+'/assets/master-navigation.js',bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2022'});
 await mkdir(out+'/master-navigation',{recursive:true});
 await writeFile(out+'/master-navigation/index.html',`<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#b3212e"><title>Master Navigation</title><link rel="icon" type="image/svg+xml" href="${base}brand/aits-icon.svg"><link rel="stylesheet" href="${base}assets/master-navigation.css?v=${assetVersion}"></head><body><div id="app"></div><script type="module" src="${base}assets/master-navigation.js?v=${assetVersion}"></script></body></html>`);
+
+// Apply browser-tab branding after every route has been generated.
+async function finishFavicons(dir) {
+  for (const entry of await readdir(dir, {withFileTypes:true})) {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) await finishFavicons(file);
+    else if (entry.name.endsWith('.html')) {
+      const html = (await readFile(file, 'utf8')).replace(/<link\b[^>]*\brel\s*=\s*["'](?:shortcut\s+)?icon["'][^>]*>/gi, '');
+      await writeFile(file, html.replace(/<\/head>/i, `<link rel="icon" type="image/svg+xml" sizes="any" href="${base}brand/aits-icon.svg?v=${assetVersion}"></head>`));
+    }
+  }
+}
+await finishFavicons(out);
