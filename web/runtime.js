@@ -19,7 +19,7 @@
     return new Promise((resolve,reject)=>{const channel=new MessageChannel(),timeout=setTimeout(()=>reject(Error('Secure download timed out.')),10000);channel.port1.onmessage=e=>{clearTimeout(timeout);resolve(e.data.url)};worker.postMessage({type:'chat-file',url:target.href,token:session.token,name,mime,inline},[channel.port2])});
   };
   account.auth=async(path,data)=>{const response=await originalFetch(new URL(path,api),{method:'POST',headers:{'Content-Type':'application/json',...(session?.token?{Authorization:'Bearer '+session.token}:{})},body:JSON.stringify(data),credentials:'omit',redirect:'error'});const result=await response.json();if(!response.ok)throw Error(result.error||'Unable to sign in.');return result;};
-  account.accept=value=>{session={token:value.token,email:value.email};sessionStorage.setItem(key,JSON.stringify(session));location.replace(config.base+'navigation/');};
+  account.accept=value=>{session={token:value.token,email:value.email};sessionStorage.setItem(key,JSON.stringify(session));const entry=new URL(location.href);location.replace(entry.searchParams.get('workspace-entry')==='1'&&entry.pathname.startsWith(config.base)?entry.pathname+entry.search+entry.hash:config.base+'navigation/');};
   account.clear=()=>{navigator.serviceWorker?.controller?.postMessage({type:'chat-clear'});session=null;sessionStorage.removeItem(key);location.reload();};
   account.options=api?originalFetch(new URL('/auth/options',api),{credentials:'omit'}).then(r=>r.json()).catch(()=>({password:false,google:false})):Promise.resolve({password:false,google:false});
   account.ready=(async()=>{

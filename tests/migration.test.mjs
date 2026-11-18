@@ -43,3 +43,10 @@ test('navigation tools follow assigned permissions and restrict Access to admins
  assert.deepEqual(visible,['Navigation','Overview','Team Chat','Project Management']);
  const admin={info:()=>({admin:true}),can:()=>true};assert(navigationItems.every(item=>canNavigate(item,admin)));
 });
+test('Master Navigation sign-in returns to the selected internal tool',async()=>{
+ const redirects=[],stored=new Map();const window={dispatchEvent(){},AITS_CONFIG:{base:'/aits-workplace/',app:'inventory',apiOrigin:'https://backend.example'},fetch:()=>Promise.resolve(new Response('{}'))};
+ vm.runInNewContext(await readFile('web/runtime.js','utf8'),{window,URL,Response,Request,Headers,Event,sessionStorage:{getItem:k=>stored.get(k),setItem:(k,v)=>stored.set(k,v)},location:{href:'https://aitscctv.github.io/aits-workplace/inventory/?workspace-entry=1',replace:url=>redirects.push(url)},document:{addEventListener(){}}});
+ await window.AITS_SESSION.ready;
+ window.AITS_SESSION.accept({token:'test-session',email:'employee@example.com'});
+ assert.deepEqual(redirects,['/aits-workplace/inventory/?workspace-entry=1']);
+});

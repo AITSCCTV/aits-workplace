@@ -31,3 +31,12 @@ html{scroll-behavior:smooth}body.aits-ui{margin:0;padding-left:var(--sidebar);ba
 .aits-ui .aits-project-sections{display:flex;gap:7px;flex-wrap:wrap;padding:14px 32px;border-bottom:1px solid #e6ddd6;background:#fff}.aits-project-sections a{padding:8px 13px;border-radius:8px;color:#7f6c60;font-size:12px}.aits-project-sections a:hover{background:#f6eeea}.aits-project-sections a[aria-current=page]{color:#a7202a;background:#fae9e6;font-weight:600}
 
 @media(max-width:700px){.aits-ui .aits-project-sections{padding:10px 14px;gap:4px}.aits-project-sections a{font-size:11px;padding:7px 9px}}
+
+/* Tool entry gate; private records are separately authorized by the API. */
+body.aits-tool-locked{padding:0!important}
+body.aits-tool-locked > :not(.aits-access-gate):not(.aits-login):not(script):not(style):not(link){display:none!important}
+.aits-access-gate:not([hidden]){min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:32px 20px;text-align:center;background:#f8f6f3;color:#302b28}
+.aits-access-gate h1{font-size:clamp(24px,4vw,32px);margin:0;max-width:600px}
+.aits-access-gate p{max-width:520px;margin:0;color:#756960}
+.aits-access-gate button{font:inherit;background:#b3212e;color:white;border:0;border-radius:10px;padding:12px 24px;min-height:44px;cursor:pointer}
+.aits-access-gate a{color:#906e51;padding:12px}

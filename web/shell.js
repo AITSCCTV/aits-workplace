@@ -1,3 +1,4 @@
+import './tool-access.js';
 import {navigationItems,projectSections,canNavigate} from './navigation-catalog.mjs';
 (()=>{
  const config=window.AITS_CONFIG,base=config.base;
