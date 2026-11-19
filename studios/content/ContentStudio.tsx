@@ -151,7 +151,7 @@ export default function ContentStudio() {
   async function post() {
     if (!selected) return;
     setBusy(true);
-    const approval = { id: selected.id, revision: selected.revision, checked };
+    const approval = { id: selected.id, revision: selected.revision, checked, channel };
     try {
       for (let attempt = 0; attempt < 24 && mounted.current; attempt++) {
         const r = await request("/api/post", {
@@ -189,8 +189,9 @@ export default function ContentStudio() {
       setBusy(false);
     }
   }
-  const ready =
-    status?.postingEnabled && status?.facebookReady && status?.instagramReady;
+  const channelName = channel === "facebook" ? "Facebook" : "Instagram";
+  const connected = channel === "facebook" ? status?.facebookReady : status?.instagramReady;
+  const ready = status?.postingEnabled && connected;
   const demoNotice = drafts.some((d) => d.demo === true);
   return (
     <div className="content-studio" lang={language}>
@@ -343,8 +344,8 @@ export default function ContentStudio() {
             <div className="connection">
               <span>{t("การเชื่อมต่อ")}</span>
               <b>
-                <i className={ready ? "dot" : "dot amber"} />
-                {ready ? t("พร้อมเผยแพร่") : t("รอเชื่อมต่อบัญชี")}
+                <i className={connected ? "dot" : "dot amber"} />
+                {channelName + ": " + (connected ? (language === "en" ? "Connected" : "เชื่อมต่อแล้ว") : t("รอเชื่อมต่อบัญชี"))}
               </b>
               <small>
                 {status?.latestRun
@@ -363,9 +364,7 @@ export default function ContentStudio() {
           </div>
           {!ready && !browserOnly && (
             <div className="notice">
-              {t(
-                "คลังร่างพร้อมใช้งาน · การเผยแพร่จะเปิดเมื่อเชื่อมต่อบัญชี Facebook และ Instagram แล้ว",
-              )}
+              {!connected ? (language === "en" ? `Connect ${channelName} to publish to this platform.` : `เชื่อมต่อ ${channelName} เพื่อเผยแพร่บนแพลตฟอร์มนี้`) : (language === "en" ? "Publishing is currently disabled." : "ขณะนี้ปิดการเผยแพร่ไว้")}
             </div>
           )}
           {browserOnly && (
@@ -467,13 +466,15 @@ export default function ContentStudio() {
                   <div className="tabs">
                     <button
                       className={channel === "facebook" ? "on" : ""}
-                      onClick={() => setChannel("facebook")}
+                      disabled={busy}
+                      onClick={() => { setChannel("facebook"); setChecked(false); }}
                     >
                       Facebook
                     </button>
                     <button
                       className={channel === "instagram" ? "on" : ""}
-                      onClick={() => setChannel("instagram")}
+                      disabled={busy}
+                      onClick={() => { setChannel("instagram"); setChecked(false); }}
                     >
                       Instagram
                     </button>
@@ -582,16 +583,15 @@ export default function ContentStudio() {
                           !checked ||
                           dirty ||
                           busy ||
-                          selected.status === "PUBLISHED" ||
                           selected.publications.some((p: Item) =>
-                            ["UNKNOWN", "POSTING"].includes(p.status),
+                            p.channel === channel && ["PUBLISHED", "UNKNOWN", "POSTING"].includes(p.status),
                           )
                         }
                         onClick={post}
                       >
                         {busy
                           ? t("กำลังดำเนินการ…")
-                          : "Post · Facebook + Instagram ↗"}
+                          : (language === "en" ? `Post to ${channelName}` : `โพสต์ไปยัง ${channelName}`)}
                       </button>
                     </div>
                     {dirty && (
