@@ -3,6 +3,7 @@ import StudioImage from "./StudioImage";
 import "./contentStudio.css";
 import { useState, useEffect, useRef } from "react";
 import { translate, type Language } from "./i18n";
+import { editorialStyle, matchesEditorialFilter } from './editorial.mjs';
 type Item = any;
 const stateLabelsTH: Record<string, string> = {
   DRAFT: "พร้อมตรวจทาน",
@@ -111,12 +112,12 @@ export default function ContentStudio() {
   const list = drafts
     .filter(
       (d) =>
-        (filter === "ALL" || d.priority === filter || d.status === filter) &&
+        matchesEditorialFilter(d, filter) &&
         d.title.includes(query),
     )
     .sort(
       (a, b) =>
-        (a.priority === "TREND" ? 0 : 1) - (b.priority === "TREND" ? 0 : 1),
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   function select(d: Item) {
     if (busy) return;
@@ -196,11 +197,11 @@ export default function ContentStudio() {
   return (
     <div className="content-studio" lang={language}>
       <dialog ref={researchDialog} className="research-dialog" aria-labelledby="research-title" onCancel={e => { e.preventDefault(); if (!researching) closeResearch(); }}>
-        <h2 id="research-title">{language === "en" ? "Research current trends" : "ค้นคว้าเทรนด์ล่าสุด"}</h2>
+        <h2 id="research-title">{language === "en" ? "Research this week’s content" : "ค้นคว้าคอนเทนต์ประจำสัปดาห์"}</h2>
         <div role="status" aria-live="polite">
           {researching && <><progress aria-label={language === "en" ? "Research in progress" : "กำลังค้นคว้า"} /><p>{language === "en" ? (research?.stage === "PREPARING" ? "Research verified. Preparing images and adding drafts to your library…" : "Searching sources and checking relevance to AITS. This may take several minutes…") : (research?.stage === "PREPARING" ? "ตรวจสอบข้อมูลแล้ว กำลังเตรียมภาพและเพิ่มร่างในคลัง…" : "กำลังค้นหาแหล่งข้อมูลและตรวจสอบความเกี่ยวข้องกับ AITS อาจใช้เวลาหลายนาที…")}</p></>}
           {research?.stage === "COMPLETE" && <p>{language === "en" ? "New content added to the content library. Ready for your review." : "เพิ่มเนื้อหาใหม่ในคลังคอนเทนต์แล้ว พร้อมให้คุณตรวจทาน"}</p>}
-          {research?.stage === "EMPTY" && <p>{language === "en" ? "No new relevant trends passed the checks yet. Check again later." : "ยังไม่มีเทรนด์ใหม่ที่เกี่ยวข้องและผ่านการตรวจสอบ ลองใหม่ภายหลัง"}</p>}
+          {research?.stage === "EMPTY" && <p>{language === "en" ? "No new draft added. This weekly slot may already be filled, or evidence was insufficient." : "ไม่มีร่างใหม่ รอบประจำสัปดาห์นี้อาจมีร่างแล้ว หรือหลักฐานยังไม่เพียงพอ"}</p>}
           {research?.stage === "FAILED" && <p>{language === "en" ? "Research could not be completed. Please try again later." : "ไม่สามารถค้นคว้าให้เสร็จได้ กรุณาลองใหม่ภายหลัง"}</p>}
           {research?.stage === "TIMED_OUT" && <p>{language === "en" ? "Research is taking longer than expected. Check the library later." : "การค้นคว้าใช้เวลานานกว่าที่คาด กรุณาตรวจสอบคลังภายหลัง"}</p>}
         </div>
@@ -225,16 +226,16 @@ export default function ContentStudio() {
             <span>{drafts.length}</span>
           </button>
           <button
-            className={filter === "TREND" ? "nav active" : "nav"}
-            onClick={() => setFilter("TREND")}
+            className={filter === "EDUCATIONAL" ? "nav active" : "nav"}
+            onClick={() => setFilter("EDUCATIONAL")}
           >
-            {t("↗ ประเด็นปัจจุบัน")}
+            {language === "en" ? "Monday · Education" : "วันจันทร์ · ความรู้ทางเทคนิค"}
           </button>
           <button
-            className={filter === "EVERGREEN" ? "nav active" : "nav"}
-            onClick={() => setFilter("EVERGREEN")}
+            className={filter === "MARKETING" ? "nav active" : "nav"}
+            onClick={() => setFilter("MARKETING")}
           >
-            {t("◈ ความรู้และบริการ")}
+            {language === "en" ? "Thursday · Marketing" : "วันพฤหัสบดี · การตลาด"}
           </button>
           <button
             className={filter === "PUBLISHED" ? "nav active" : "nav"}
@@ -245,7 +246,7 @@ export default function ContentStudio() {
           <div className="rail-bottom">
             <span className={status?.monitoringEnabled ? "dot" : "dot amber"} />
             {status?.monitoringEnabled
-              ? (language === "en" ? "Research every two days" : "ค้นคว้าทุกสองวัน")
+              ? (language === "en" ? "Monday & Thursday · 08:00" : "จันทร์และพฤหัสบดี · 08:00")
               : t("รอเปิดระบบตรวจข่าว")}
             <br />
             <small>{t("เวลาไทย · Asia/Bangkok")}</small>
@@ -299,7 +300,7 @@ export default function ContentStudio() {
               onClick={researchNow}
               disabled={busy || dirty || researching}
             >
-              {language === "en" ? "Research now" : "ค้นคว้าตอนนี้"}
+              {language === "en" ? "Research current slot" : "ค้นคว้ารอบปัจจุบัน"}
             </button>
             <button
               className="outline"
@@ -318,16 +319,20 @@ export default function ContentStudio() {
               {t("↻ รีเฟรช")}
             </button>
           </header>
-          <div className="stats">
+          <section className="editorial-calendar" aria-label={language === "en" ? "Weekly content plan" : "แผนคอนเทนต์ประจำสัปดาห์"}>
+            <strong>{language === "en" ? "2 drafts per week · 08:00 Bangkok time" : "2 ร่างต่อสัปดาห์ · 08:00 เวลาไทย"}</strong>
+            <p>{language === "en" ? "Monday: technical smart-home education · Thursday: marketing and buying guides" : "วันจันทร์: ความรู้ทางเทคนิคเกี่ยวกับสมาร์ทโฮม · วันพฤหัสบดี: การตลาดและคำแนะนำการเลือกซื้อ"}</p>
+            <small>{language === "en" ? "Review captions and images before posting. Manual research fills the current slot: Monday–Wednesday education; Thursday–Sunday marketing. Existing slots are not duplicated." : "ตรวจทานข้อความและภาพก่อนเผยแพร่ ค้นคว้าเองจะเติมรอบปัจจุบัน: จันทร์–พุธเป็นความรู้ พฤหัสบดี–อาทิตย์เป็นการตลาด โดยไม่สร้างซ้ำรอบที่มีร่างแล้ว"}</small>
+          </section><div className="stats">
             <div>
               <span>{t("ร่างทั้งหมด")}</span>
               <strong>{drafts.length.toString().padStart(2, "0")}</strong>
             </div>
             <div>
-              <span>{t("ประเด็นปัจจุบัน")}</span>
+              <span>{language === "en" ? "Educational drafts" : "ร่างความรู้ทางเทคนิค"}</span>
               <strong>
                 {drafts
-                  .filter((d) => d.priority === "TREND")
+                  .filter((d) => editorialStyle(d) === "EDUCATIONAL")
                   .length.toString()
                   .padStart(2, "0")}
               </strong>
@@ -421,9 +426,11 @@ export default function ContentStudio() {
                         "tag " + (d.priority === "TREND" ? "trend" : "")
                       }
                     >
-                      {d.priority === "TREND"
-                        ? t("ประเด็นปัจจุบัน")
-                        : t("ความรู้และบริการ")}
+                      {editorialStyle(d) === "EDUCATIONAL"
+                        ? (language === "en" ? "Monday · Education" : "วันจันทร์ · ความรู้")
+                        : editorialStyle(d) === "MARKETING"
+                          ? (language === "en" ? "Thursday · Marketing" : "วันพฤหัสบดี · การตลาด")
+                          : (language === "en" ? "Earlier draft" : "ร่างเดิม")}
                     </span>
                     <h3>{d.title}</h3>
                     <small>
@@ -445,7 +452,7 @@ export default function ContentStudio() {
                   </h3>
                   <p>
                     {t(
-                      "ระบบจะค้นหาประเด็นในประเทศไทย ตรวจหลักฐาน และเตรียมคำบรรยายพร้อมภาพให้ตรวจทาน",
+                      "ระบบจะค้นคว้าความรู้ทางเทคนิควันจันทร์ และการตลาดวันพฤหัสบดี พร้อมข้อความและภาพให้ตรวจทาน",
                     )}
                   </p>
                   <div className="steps">
@@ -630,7 +637,7 @@ export default function ContentStudio() {
           )}
           <footer>
             {t(
-              "AITSCCTV · คอนเทนต์ภาษาไทย · ประเด็นปัจจุบันมาก่อนความรู้ทั่วไป",
+              "AITSCCTV · วันจันทร์ความรู้ทางเทคนิค · วันพฤหัสบดีการตลาด · ตรวจทานก่อนเผยแพร่",
             )}
           </footer>
         </main>

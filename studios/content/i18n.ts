@@ -1,5 +1,7 @@
 export type Language = "th" | "en";
 const english: Record<string, string> = {
+  "ระบบจะค้นคว้าความรู้ทางเทคนิควันจันทร์ และการตลาดวันพฤหัสบดี พร้อมข้อความและภาพให้ตรวจทาน": "Research prepares technical education on Mondays and marketing on Thursdays, with captions and images for review.",
+  "AITSCCTV · วันจันทร์ความรู้ทางเทคนิค · วันพฤหัสบดีการตลาด · ตรวจทานก่อนเผยแพร่": "AITSCCTV · Monday education · Thursday marketing · Review before publishing",
   "GitHub Pages · บันทึกการแก้ไขในเบราว์เซอร์นี้เท่านั้น ยังไม่เชื่อมต่อ n8n และการเผยแพร่":
     "GitHub Pages · Edits are saved in this browser only. n8n delivery and publishing are not connected yet.",
   บันทึกในเบราว์เซอร์ไม่สำเร็จ: "Could not save in this browser.",

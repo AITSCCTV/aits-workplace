@@ -855,3 +855,5 @@
 .content-studio .research-dialog p { line-height: 1.7; }
 .content-studio .research-dialog progress { width: 100%; accent-color: var(--aits-red); }
 .content-studio .research-dialog button { border: 0; border-radius: 8px; padding: 12px 18px; color: white; background: var(--aits-red); }
+
+.content-studio .editorial-calendar{border:1px solid #e5e7eb;border-left:4px solid #c53130;border-radius:12px;padding:16px 20px;margin:16px 0;background:#fff}.content-studio .editorial-calendar p{margin:8px 0}.content-studio .editorial-calendar small{color:#667085;line-height:1.6}
