@@ -5,8 +5,8 @@ const english: Record<string, string> = {
   "GitHub Pages · บันทึกการแก้ไขในเบราว์เซอร์นี้เท่านั้น ยังไม่เชื่อมต่อ n8n และการเผยแพร่":
     "GitHub Pages · Edits are saved in this browser only. n8n delivery and publishing are not connected yet.",
   บันทึกในเบราว์เซอร์ไม่สำเร็จ: "Could not save in this browser.",
-  "โหมดตัวอย่าง · ร่างเหล่านี้ใช้ทดสอบการตรวจทานและบันทึก ไม่ใช่ข่าวปัจจุบัน และไม่สามารถเผยแพร่ได้":
-    "Demo mode · These sample drafts let you test reviewing and saving. They are not current news and cannot be published.",
+  "คลังมีร่างตัวอย่างสำหรับทดสอบ ซึ่งไม่สามารถเผยแพร่ได้ ส่วนร่างจริงสามารถตรวจทานและเผยแพร่ได้เมื่อเชื่อมต่อบัญชี":
+    "This library contains sample drafts that cannot be published. Real drafts can be reviewed and published when the account is connected.",
   ร่างตัวอย่างไม่สามารถเผยแพร่ได้: "Demo drafts cannot be published.",
   พร้อมตรวจทาน: "Ready for review",
   กำลังเผยแพร่: "Publishing",
