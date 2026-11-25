@@ -369,7 +369,9 @@ export default function ContentStudio() {
           </div>
           {!ready && !browserOnly && (
             <div className="notice">
-              {!connected ? (language === "en" ? `Connect ${channelName} to publish to this platform.` : `เชื่อมต่อ ${channelName} เพื่อเผยแพร่บนแพลตฟอร์มนี้`) : (language === "en" ? "Publishing is currently disabled." : "ขณะนี้ปิดการเผยแพร่ไว้")}
+              {channel === "facebook" && status?.facebookConnection?.reason === "TOKEN_EXPIRED_OR_INVALID" ? (language === "en" ? "Facebook access has expired or is invalid. Ask an administrator to renew the Page connection, then refresh. Your drafts are safe." : "สิทธิ์เข้าถึง Facebook หมดอายุหรือไม่ถูกต้อง ให้ผู้ดูแลต่ออายุการเชื่อมต่อเพจแล้วรีเฟรช ร่างของคุณยังอยู่ครบ") :
+              (!connected ? (language === "en" ? `Connect ${channelName} to publish to this platform.` : `เชื่อมต่อ ${channelName} เพื่อเผยแพร่บนแพลตฟอร์มนี้`) : (language === "en" ? "Publishing is currently disabled." : "ขณะนี้ปิดการเผยแพร่ไว้"))
+              }
             </div>
           )}
           {browserOnly && (
