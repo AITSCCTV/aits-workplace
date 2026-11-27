@@ -7,6 +7,7 @@ import {lineChat} from './line-chat.mjs';
 import {passwordLogin,passwordApi,cleanSessions} from './passwords.mjs';
 import {membersApi,sessionInfo} from './members.mjs';
 import {studioIdentity} from './studio-access.mjs';
+import {readStudioInstructions,saveStudioInstructions} from './content-studio-instructions.mjs';
 import {studioGateway,floorplanGateway} from './studio-gateway.mjs';
 import {runWithContext} from './context.mjs';
 import {authenticate,authorize,HttpError} from './auth.mjs';
@@ -73,6 +74,14 @@ export function createWorker(verify=authenticate){return {async scheduled(contro
   if(url.pathname.startsWith('/floorplan-studio/')){await studioIdentity(user,env,'floorplan');return finish(await floorplanGateway(request,user));}
   if(url.pathname.startsWith('/project-board/api/staff/')){
    await studioIdentity(user,env,'content');
+   if(url.pathname==='/project-board/api/staff/admin/content-studio/instructions'){
+    if(request.method==='GET')return finish(json(await readStudioInstructions(env.DB_LINE_ARCHIVE,true)));
+    if(request.method!=='PUT')throw new HttpError(405,'GET or PUT is required.');
+    if(!request.headers.get('content-type')?.startsWith('application/json'))throw new HttpError(415,'JSON is required.');
+    const body=await limitedBody(request,100_000);
+    let input;try{input=JSON.parse(new TextDecoder().decode(body));}catch{throw new HttpError(400,'Invalid JSON.');}
+    return finish(await saveStudioInstructions(env.DB_LINE_ARCHIVE,input,user.email));
+   }
    const body=await limitedBody(request,500_000);
    if(!env.CONTENT_STUDIO_SERVICE)throw new HttpError(503,'Content Studio connection unavailable.');
    return finish(await studioGateway(new Request(url.href,{method:request.method,headers:request.headers,body}),user,env.CONTENT_STUDIO_SERVICE.fetch.bind(env.CONTENT_STUDIO_SERVICE)));

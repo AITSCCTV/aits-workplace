@@ -8,7 +8,7 @@
     "test": "node --test tests/migration.test.mjs tests/i18n.test.mjs",
     "preview": "python -m http.server 4173 --directory dist",
     "build:backend": "node scripts/build-backend.mjs",
-    "test:backend": "npm run build:backend && node --test backend/tests/messaging.test.mjs backend/tests/project-management.test.mjs backend/tests/weeklybrief.test.mjs backend/tests/backend.test.mjs backend/tests/studio.test.mjs backend/tests/line-chat.test.mjs backend/tests/assistant.test.mjs"
+    "test:backend": "npm run build:backend && node --test backend/tests/messaging.test.mjs backend/tests/project-management.test.mjs backend/tests/weeklybrief.test.mjs backend/tests/backend.test.mjs backend/tests/studio.test.mjs backend/tests/line-chat.test.mjs backend/tests/assistant.test.mjs backend/tests/content-studio-instructions.test.mjs"
   },
   "dependencies": {
     "docx": "^9.15.4",

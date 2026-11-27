@@ -1,5 +1,6 @@
 import { studioRequest } from "./studioApi";
 import StudioImage from "./StudioImage";
+import AIInstructions from './AIInstructions';
 import "./contentStudio.css";
 import { useState, useEffect, useRef } from "react";
 import { translate, type Language } from "./i18n";
@@ -15,6 +16,7 @@ const stateLabelsTH: Record<string, string> = {
   UNKNOWN: "ต้องตรวจสอบในบัญชี",
 };
 export default function ContentStudio() {
+  const [instructionsOpen,setInstructionsOpen]=useState(location.hash==='#ai-instructions');
   const researchDialog = useRef<HTMLDialogElement>(null);
   const researchButton = useRef<HTMLButtonElement>(null);
   const [research, setResearch] = useState<{id?: string; stage: string; added?: number; error?: string} | null>(null);
@@ -199,6 +201,7 @@ export default function ContentStudio() {
   const connected = channel === "facebook" ? status?.facebookReady : status?.instagramReady;
   const ready = status?.postingEnabled && connected;
   const demoNotice = drafts.some((d) => d.demo === true);
+  if(instructionsOpen)return <AIInstructions language={language} onBack={()=>{history.replaceState(null,'',location.pathname+location.search);setInstructionsOpen(false);}}/>;
   return (
     <div className="content-studio" lang={language}>
       <dialog ref={researchDialog} className="research-dialog" aria-labelledby="research-title" onCancel={e => { e.preventDefault(); if (!researching) closeResearch(); }}>
@@ -288,6 +291,7 @@ export default function ContentStudio() {
             </button>
           </div>
           <header>
+            <button className="outline" disabled={busy||dirty||researching} onClick={()=>{history.replaceState(null,'','#ai-instructions');setInstructionsOpen(true);}}>{language==='en'?'AI Instructions':'คำสั่ง AI'}</button>
             <div>
               <div className="eyebrow">
                 {t("AITSCCTV / คอนเทนต์และโอกาสการขาย")}
