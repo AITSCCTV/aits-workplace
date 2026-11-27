@@ -24,7 +24,7 @@ export default function IdeaGenerator({language,disabled,onReady}:{language:stri
  async function submit(event:React.FormEvent){event.preventDefault();if(active||disabled||prompt.trim().length<10)return;setSubmitting(true);setError('');
   key.current ||= crypto.randomUUID().replaceAll('-','');
   try{const result=await apiClient.post('/api/admin/content-studio/ideas',{prompt,style,requestId:key.current}) as {id:string};setJob({id:result.id,stage:'QUEUED'});try{sessionStorage.setItem(storageKey,result.id);}catch{}}
-  catch(e){setError((e as Error).message);}finally{setSubmitting(false);}
+  catch(e){const failure=e as Error&{status?:number};if(failure.status)key.current='';const thai:Record<number,string>={400:'กรุณาใส่ไอเดีย 10–4,000 ตัวอักษรและเลือกรูปแบบเนื้อหา',401:'กรุณาเข้าสู่ระบบอีกครั้ง',403:'บัญชีนี้ไม่มีสิทธิ์ใช้งาน Content Studio',409:'คำขอนี้ถูกใช้แล้ว กรุณาลองส่งไอเดียใหม่',429:'ไอเดียก่อนหน้ายังอยู่ระหว่างดำเนินการ โปรดรอให้เสร็จก่อนส่งไอเดียใหม่',502:'ไม่สามารถเริ่มสร้างร่างได้ กรุณาลองอีกครั้ง',503:'ระบบสร้างร่างยังไม่พร้อมใช้งาน กรุณาลองใหม่ภายหลัง'};setError(en?failure.message:(thai[failure.status||0]||'การเชื่อมต่อขัดข้อง ลองกดสร้างร่างอีกครั้งเพื่อส่งคำขอเดิมต่อโดยไม่สร้างซ้ำ'));}finally{setSubmitting(false);}
  }
  return <section className="idea-generator" aria-labelledby="idea-title">
   <h2 id="idea-title">{en?'Generate from an idea':'สร้างร่างจากไอเดีย'}</h2>
