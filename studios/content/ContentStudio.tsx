@@ -18,6 +18,12 @@ const stateLabelsTH: Record<string, string> = {
 };
 export default function ContentStudio() {
   const [instructionsOpen,setInstructionsOpen]=useState(location.hash==='#ai-instructions');
+  const [ideasOpen,setIdeasOpen]=useState(location.hash==='#generate-idea');
+  function openStudioPage(page:'library'|'instructions'|'idea'){
+    history.pushState(null,'',location.pathname+location.search+(page==='instructions'?'#ai-instructions':page==='idea'?'#generate-idea':''));
+    setInstructionsOpen(page==='instructions');setIdeasOpen(page==='idea');window.scrollTo(0,0);
+  }
+  useEffect(()=>{const sync=()=>{setInstructionsOpen(location.hash==='#ai-instructions');setIdeasOpen(location.hash==='#generate-idea');};window.addEventListener('popstate',sync);window.addEventListener('hashchange',sync);return()=>{window.removeEventListener('popstate',sync);window.removeEventListener('hashchange',sync);};},[]);
   const researchDialog = useRef<HTMLDialogElement>(null);
   const researchButton = useRef<HTMLButtonElement>(null);
   const [research, setResearch] = useState<{id?: string; stage: string; added?: number; error?: string} | null>(null);
@@ -205,7 +211,14 @@ export default function ContentStudio() {
   const connected = channel === "facebook" ? status?.facebookReady : status?.instagramReady;
   const ready = status?.postingEnabled && connected;
   const demoNotice = drafts.some((d) => d.demo === true);
-  if(instructionsOpen)return <AIInstructions language={language} onBack={()=>{history.replaceState(null,'',location.pathname+location.search);setInstructionsOpen(false);}}/>;
+  if(instructionsOpen)return <AIInstructions language={language} onBack={()=>openStudioPage('library')}/>;
+  if(ideasOpen)return <main className="idea-page">
+    <nav aria-label={language==='en'?'Content Studio pages':'หน้า Content Studio'}>
+      <button type="button" onClick={()=>openStudioPage('library')}>{language==='en'?'Content library':'คลังคอนเทนต์'}</button>
+      <button type="button" onClick={()=>openStudioPage('instructions')}>{language==='en'?'AI Instructions':'คำสั่ง AI'}</button>
+    </nav>
+    <IdeaGenerator language={language} disabled={busy||dirty||researching} onReady={id=>{if(!dirty&&!busy){openStudioPage('library');setFilter('ALL');setQuery('');setChecked(false);void load(id);}}}/>
+  </main>;
   return (
     <div className="content-studio" lang={language}>
       <dialog ref={researchDialog} className="research-dialog" aria-labelledby="research-title" onCancel={e => { e.preventDefault(); if (!researching) closeResearch(); }}>
@@ -295,7 +308,8 @@ export default function ContentStudio() {
             </button>
           </div>
           <header>
-            <button className="outline" disabled={busy||dirty||researching} onClick={()=>{history.replaceState(null,'','#ai-instructions');setInstructionsOpen(true);}}>{language==='en'?'AI Instructions':'คำสั่ง AI'}</button>
+            <button className="outline" disabled={busy||dirty||researching} onClick={()=>openStudioPage('instructions')}>{language==='en'?'AI Instructions':'คำสั่ง AI'}</button>
+            <button className="outline" disabled={busy||dirty||researching} onClick={()=>openStudioPage('idea')}>{language==='en'?'Generate from an idea':'สร้างร่างจากไอเดีย'}</button>
             <div>
               <div className="eyebrow">
                 {t("AITSCCTV / คอนเทนต์และโอกาสการขาย")}
@@ -332,7 +346,6 @@ export default function ContentStudio() {
               {t("↻ รีเฟรช")}
             </button>
           </header>
-          <IdeaGenerator language={language} disabled={busy||dirty||researching} onReady={id=>{if(!dirty&&!busy){setFilter('ALL');setQuery('');setChecked(false);void load(id);}}}/>
           <section className="editorial-calendar" aria-label={language === "en" ? "Weekly content plan" : "แผนคอนเทนต์ประจำสัปดาห์"}>
             <strong>{language === "en" ? "2 drafts per week · 08:00 Bangkok time" : "2 ร่างต่อสัปดาห์ · 08:00 เวลาไทย"}</strong>
             <p>{language === "en" ? "Monday: technical smart-home education · Thursday: marketing and buying guides" : "วันจันทร์: ความรู้ทางเทคนิคเกี่ยวกับสมาร์ทโฮม · วันพฤหัสบดี: การตลาดและคำแนะนำการเลือกซื้อ"}</p>
