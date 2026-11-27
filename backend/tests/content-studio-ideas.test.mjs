@@ -50,10 +50,31 @@ test('live workflow patch isolates idea IDs, preserves schedules, and keeps prot
  const state={...one,rows:[{kind:'CONTENT',status:'PENDING_REVIEW',data:{card:{instagram:{},editorialSlot:normal.editorialSlot}}},{kind:'CONTENT',status:'PENDING_REVIEW',data:{card:{instagram:{},editorialSlot:one.editorialSlot}}}]};
  const delivery=new Function('$json',node('Prepare Draft Packages').parameters.jsCode)({state});assert.equal(delivery.length,1);assert.equal(delivery[0].json.card.editorialSlot,one.editorialSlot);
  assert.equal(nodes.some(n=>n.name==='Image Generation'),false);assert.equal(nodes.some(n=>/08:00/.test(n.name)),false);
+ const verifier=node('Validate Verification').parameters.jsCode.split('\nconst p=unpack')[0];
+ const url='https://aitscctv.com/cctv-camera-service/';
+ const check={id:'E01',verdict:'VERIFIED',countryCode:'TH',locationTH:'ประเทศไทย',publishedAt:new Date().toISOString(),eventKey:'revisit topic',kind:'SEARCH_OBSERVATION',serviceId:'CCTV',fit:9,needScore:8,timeliness:8,claims:[{id:'E01-C1',textTH:'บริการติดตั้งกล้อง',sourceUrls:[url]}],sourceGroups:[],newDevelopmentTH:''};
+ const verifyState={...one,registry:{[url.slice(0,-1)]:{url}},history:[{eventKey:'revisit topic',claimKey:'old',urls:[url]}]};
+ const accept=new Function('candidate','state',verifier+'\nreturn acceptVerified(candidate,state);');
+ assert.ok(accept(check,verifyState));assert.equal(accept(check,{...verifyState,oneTimeIdea:false}),null);assert.equal(accept(check,{...verifyState,registry:{}}),null);
 });
 test('shared ingest retrieves stored idea only after authentication and claims it once',{skip:!process.env.STUDIO_TEST_BUNDLE},async()=>{
  const code=fs.readFileSync(process.env.STUDIO_TEST_BUNDLE,'utf8'),source=code.slice(code.indexOf('async function ingest(request2,'),code.indexOf('__name(ingest,'));const e=env();await createStudioIdea(idea,e,'ceo',async()=>new Response('{}'));
  const ctx=vm.createContext({ingestAuthorized:async()=>false,readStudioJson:async()=>({researchCheck:'manual_idea_'+idea.requestId,ideaPrompt:'override'}),studioId:{parse:x=>x},validateDraft:()=>{throw Error('Must not ingest')}});vm.runInContext(source,ctx);const json=(body,status=200)=>({body,status});
  assert.equal((await ctx.ingest({},e,json)).status,401);ctx.ingestAuthorized=async()=>true;
  const result=await ctx.ingest({},e,json);assert.equal(result.body.ideaPrompt,idea.prompt);assert.equal(result.body.editorialStyle,'EDUCATIONAL');assert.equal((await ctx.ingest({},e,json)).status,409);
+});
+test('shared route denies unauthenticated requests and reports delivered ideas as review drafts',{skip:!process.env.STUDIO_TEST_BUNDLE},async()=>{
+ const code=fs.readFileSync(process.env.STUDIO_TEST_BUNDLE,'utf8'),start=code.indexOf('async function handleContentStudioAdminRoutes('),source=code.slice(start,code.indexOf('__name(handleContentStudioAdminRoutes,',start));
+ const e=env();await e.DB.prepare('CREATE TABLE content_studio_drafts(id TEXT PRIMARY KEY,status TEXT)').run();
+ const ctx=vm.createContext({URL,Date,JSON,Response,ADMIN:'/api/admin/content-studio',__name:x=>x,canAccessContentStudio:r=>r==='marketing',studioId:{parse:x=>x},failure:e=>{throw e},readStudioJson:async()=>({...idea,postingEnabled:true}),createStudioIdea});vm.runInContext(source,ctx);
+ const url=new URL('https://api.test/api/admin/content-studio/ideas'),request=new Request(url,{method:'POST'}),json=(body,status=200)=>Response.json(body,{status});
+ assert.equal((await ctx.handleContentStudioAdminRoutes(request,url,e,null,json)).status,401);
+ assert.equal((await ctx.handleContentStudioAdminRoutes(request,url,e,{auth_source:'workspace',role:'marketing',email:'ceo'},json)).status,400);
+ const created=await createStudioIdea(idea,e,'ceo',async()=>new Response('{}'));const id=created.body.id,draftId='ideaedu_'+idea.requestId;
+ await e.DB.prepare('INSERT INTO content_studio_runs VALUES(?,?,?)').bind('report_DAILY_'+id,JSON.stringify({cards:[{contentId:draftId}]}),new Date().toISOString()).run();
+ await e.DB.prepare("INSERT INTO content_studio_drafts VALUES(?,'DRAFT')").bind(draftId).run();
+ const statusUrl=new URL('https://api.test/api/admin/content-studio/research/'+id);
+ const response=await ctx.handleContentStudioAdminRoutes(new Request(statusUrl),statusUrl,e,{auth_source:'workspace',role:'marketing',email:'ceo'},json);const status=await response.json();assert.equal(status.stage,'COMPLETE');assert.deepEqual(status.draftIds,[draftId]);
+ const job=await e.DB.prepare('SELECT payload FROM content_studio_runs WHERE id=?').bind(id).first();assert.equal(JSON.parse(job.payload).stage,'COMPLETE');
+ assert.equal((await createStudioIdea({...idea,requestId:'b'.repeat(32)},e,'ceo',async()=>new Response('{}'))).status,202);
 });
