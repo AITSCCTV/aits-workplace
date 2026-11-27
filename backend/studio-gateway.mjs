@@ -4,7 +4,7 @@ export async function studioGateway(request,user,fetcher=fetch){
  const method=request.method;
  const allowed=(method==='GET'&&/^\/api\/admin\/content-studio\/(drafts|status|research\/[a-zA-Z0-9_-]+|media\/[a-f0-9]{32}\.jpg)$/.test(path))||
  (method==='PUT'&&path==='/api/admin/content-studio/drafts')||
- (method==='POST'&&/^\/api\/admin\/content-studio\/(research|post)$/.test(path));
+ (method==='POST'&&/^\/api\/admin\/content-studio\/(research|ideas|post)$/.test(path));
  if(!allowed)throw new HttpError(404,'Studio route not found.');
  if(!user.token)throw new HttpError(401,'Workspace sign-in is required.');
  const headers=new Headers({'Content-Type':'application/json','X-AITS-Workspace-Token':user.token});

@@ -1,6 +1,7 @@
 import { studioRequest } from "./studioApi";
 import StudioImage from "./StudioImage";
 import AIInstructions from './AIInstructions';
+import IdeaGenerator from './IdeaGenerator';
 import "./contentStudio.css";
 import { useState, useEffect, useRef } from "react";
 import { translate, type Language } from "./i18n";
@@ -237,13 +238,13 @@ export default function ContentStudio() {
             className={filter === "EDUCATIONAL" ? "nav active" : "nav"}
             onClick={() => setFilter("EDUCATIONAL")}
           >
-            {language === "en" ? "Monday · Education" : "วันจันทร์ · ความรู้ทางเทคนิค"}
+            {language === "en" ? "Education" : "ความรู้ทางเทคนิค"}
           </button>
           <button
             className={filter === "MARKETING" ? "nav active" : "nav"}
             onClick={() => setFilter("MARKETING")}
           >
-            {language === "en" ? "Thursday · Marketing" : "วันพฤหัสบดี · การตลาด"}
+            {language === "en" ? "Marketing" : "การตลาด"}
           </button>
           <button
             className={filter === "PUBLISHED" ? "nav active" : "nav"}
@@ -328,6 +329,7 @@ export default function ContentStudio() {
               {t("↻ รีเฟรช")}
             </button>
           </header>
+          <IdeaGenerator language={language} disabled={busy||dirty||researching} onReady={id=>{if(!dirty&&!busy){setFilter('ALL');void load(id);}}}/>
           <section className="editorial-calendar" aria-label={language === "en" ? "Weekly content plan" : "แผนคอนเทนต์ประจำสัปดาห์"}>
             <strong>{language === "en" ? "2 drafts per week · 08:00 Bangkok time" : "2 ร่างต่อสัปดาห์ · 08:00 เวลาไทย"}</strong>
             <p>{language === "en" ? "Monday: technical smart-home education · Thursday: marketing and buying guides" : "วันจันทร์: ความรู้ทางเทคนิคเกี่ยวกับสมาร์ทโฮม · วันพฤหัสบดี: การตลาดและคำแนะนำการเลือกซื้อ"}</p>
@@ -438,7 +440,9 @@ export default function ContentStudio() {
                         "tag " + (d.priority === "TREND" ? "trend" : "")
                       }
                     >
-                      {editorialStyle(d) === "EDUCATIONAL"
+                      {/^(ideaedu_|ideamarketing_)/.test(d.id)
+                        ? (language === "en" ? "One-time idea" : "ไอเดียครั้งเดียว")
+                        : editorialStyle(d) === "EDUCATIONAL"
                         ? (language === "en" ? "Monday · Education" : "วันจันทร์ · ความรู้")
                         : editorialStyle(d) === "MARKETING"
                           ? (language === "en" ? "Thursday · Marketing" : "วันพฤหัสบดี · การตลาด")
