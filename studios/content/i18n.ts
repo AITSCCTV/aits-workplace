@@ -1,5 +1,15 @@
 export type Language = "th" | "en";
 const english: Record<string, string> = {
+  "ไม่ทราบวันที่": "Date unavailable",
+  "สถานะการเชื่อมต่อปัจจุบัน": "Current connection",
+  "สถานะการเชื่อมต่อ Facebook ปัจจุบัน": "Current Facebook connection",
+  "ตรวจสอบการเชื่อมต่อเมื่อ ": "Connection checked at ",
+  "เชื่อมต่อแล้ว": "Connected",
+  "พร้อมให้ทีมตรวจทานและกดเผยแพร่": "Ready for team review and manual publishing",
+  "ขณะนี้ปิดการเผยแพร่ไว้": "Publishing is currently disabled",
+  "การเผยแพร่ครั้งก่อนล้มเหลว": "Previous attempt failed",
+  "ข้อผิดพลาดที่บันทึกไว้: ": "Recorded error: ",
+  "นี่คือผลจากครั้งก่อน ไม่ได้กำลังเผยแพร่หรือลองใหม่อัตโนมัติ": "This is a previous result. No publishing or automatic retry is in progress.",
   'การเชื่อมต่อหมดอายุหรือถูกยกเลิก ให้ผู้ดูแลเชื่อมต่อบัญชีใหม่แล้วรีเฟรช': 'Account access has expired or been revoked. Ask an administrator to reconnect the account, then refresh.',
   'บัญชีไม่มีสิทธิ์เผยแพร่ ให้ผู้ดูแลตรวจสอบสิทธิ์เพจและแอปแล้วเชื่อมต่อใหม่': 'Publishing permission is missing. Ask an administrator to check Page and app permissions, then reconnect.',
   'แพลตฟอร์มจำกัดจำนวนคำขอ กรุณารอสักครู่ก่อนลองใหม่': 'The platform is rate limiting requests. Wait before trying again.',

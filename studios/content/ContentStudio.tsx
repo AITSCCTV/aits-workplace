@@ -66,6 +66,10 @@ export default function ContentStudio() {
   const t = (text: string) => translate(language, text);
   const label = (status: string) => t(stateLabelsTH[status] || status);
   const locale = language === "en" ? "en-GB" : "th-TH";
+  const [connectionCheckedAt, setConnectionCheckedAt] = useState<string | null>(null);
+  const displayTime = (value?: string) => value && Number.isFinite(Date.parse(value))
+    ? new Date(value).toLocaleString(locale, { timeZone: "Asia/Bangkok" }) + " (UTC+7)"
+    : t("ไม่ทราบวันที่");
   useEffect(() => {
     try {
       const saved = localStorage.getItem("aits-workplace-language");
@@ -98,6 +102,7 @@ export default function ContentStudio() {
       const list = ((await a.json()) as any).drafts;
       setDrafts(list);
       setStatus(await b.json());
+      setConnectionCheckedAt(new Date().toISOString());
       if (!keep) setSelected(null);
       if (keep) setSelected(list.find((d: Item) => d.id === keep) || null);
       return true;
@@ -347,11 +352,12 @@ export default function ContentStudio() {
               </strong>
             </div>
             <div className="connection">
-              <span>{t("การเชื่อมต่อ")}</span>
+              <span>{t("สถานะการเชื่อมต่อปัจจุบัน")}</span>
               <b>
                 <i className={connected ? "dot" : "dot amber"} />
                 {channelName + ": " + (connected ? (language === "en" ? "Connected" : "เชื่อมต่อแล้ว") : t("รอเชื่อมต่อบัญชี"))}
               </b>
+              {connectionCheckedAt && <small>{t("ตรวจสอบการเชื่อมต่อเมื่อ ") + displayTime(connectionCheckedAt)}</small>}
               <small>
                 {status?.latestRun
                   ? t(
@@ -549,21 +555,31 @@ export default function ContentStudio() {
                       <pre className="article">{selected.article.body}</pre>
                     </details>
                   )}
+                  <div className="notice" role="status">
+                    <b>{t("สถานะการเชื่อมต่อ Facebook ปัจจุบัน") + ": "}</b>
+                    {status?.facebookConnection?.ok
+                      ? t("เชื่อมต่อแล้ว")
+                      : t("รอเชื่อมต่อบัญชี")}
+                    {status?.facebookConnection?.ok && (status?.postingEnabled
+                      ? " · " + t("พร้อมให้ทีมตรวจทานและกดเผยแพร่")
+                      : " · " + t("ขณะนี้ปิดการเผยแพร่ไว้"))}
+                    {connectionCheckedAt && <div><small>{t("ตรวจสอบการเชื่อมต่อเมื่อ ") + displayTime(connectionCheckedAt)}</small></div>}
+                  </div>
                   <div className="post-results">
                     {selected.publications.map((p: Item) => (
                       <div key={p.channel}>
                         <b>
                           {p.channel === "facebook" ? "Facebook" : "Instagram"}
                         </b>
-                        <span>{label(p.status)}</span>
+                        <span>{p.status === "FAILED" ? t("การเผยแพร่ครั้งก่อนล้มเหลว") : label(p.status)}</span>
+                        {p.status === "FAILED" && <small>{displayTime(p.finished_at || p.started_at)}</small>}
                         {p.post_url && (
                           <a href={p.post_url} target="_blank" rel="noreferrer">
                             {t("เปิดโพสต์ ↗")}
                           </a>
                         )}
-                        {p.error && <small>{t(p.channel === "facebook" && p.status === "FAILED" && status?.facebookConnection?.reason === "TOKEN_EXPIRED_OR_INVALID"
-                          ? 'การเชื่อมต่อหมดอายุหรือถูกยกเลิก ให้ผู้ดูแลเชื่อมต่อบัญชีใหม่แล้วรีเฟรช'
-                          : p.error)}</small>}
+                        {p.error && <small>{(p.status === "FAILED" ? t("ข้อผิดพลาดที่บันทึกไว้: ") : "") + t(p.error)}</small>}
+                        {p.status === "FAILED" && <small>{t("นี่คือผลจากครั้งก่อน ไม่ได้กำลังเผยแพร่หรือลองใหม่อัตโนมัติ")}</small>}
                       </div>
                     ))}
                   </div>
