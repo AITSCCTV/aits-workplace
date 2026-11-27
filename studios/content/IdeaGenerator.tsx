@@ -9,7 +9,7 @@ export default function IdeaGenerator({language,disabled,onReady}:{language:stri
  const [prompt,setPrompt]=useState(''),[style,setStyle]=useState('MARKETING'),[job,setJob]=useState<Job|null>(null),[submitting,setSubmitting]=useState(false),[error,setError]=useState('');
  const key=useRef(''),ready=useRef(onReady);ready.current=onReady;
  const active=submitting||!!job&&!terminal.includes(job.stage);
- useEffect(()=>{try{const saved=sessionStorage.getItem(storageKey);if(saved)setJob({id:saved,stage:'QUEUED'});}catch{}},[]);
+ useEffect(()=>{try{const raw=sessionStorage.getItem(storageKey);if(!raw)return;const saved=raw.startsWith('{')?JSON.parse(raw):{id:raw};if(!/^manual_idea_[a-f0-9]{32}$/.test(saved.id||''))return;if(typeof saved.prompt==='string'&&saved.prompt.length<=4000)setPrompt(saved.prompt);if(['EDUCATIONAL','MARKETING'].includes(saved.style))setStyle(saved.style);setJob({id:saved.id,stage:'QUEUED'});}catch{}},[]);
  useEffect(()=>{
   if(!job?.id||terminal.includes(job.stage))return;
   let stopped=false,timer:number;
@@ -23,7 +23,7 @@ export default function IdeaGenerator({language,disabled,onReady}:{language:stri
  },[job?.id,job?.stage,en]);
  async function submit(event:React.FormEvent){event.preventDefault();if(active||disabled||prompt.trim().length<10)return;setSubmitting(true);setError('');
   key.current ||= crypto.randomUUID().replaceAll('-','');
-  try{const result=await apiClient.post('/api/admin/content-studio/ideas',{prompt,style,requestId:key.current}) as {id:string};setJob({id:result.id,stage:'QUEUED'});try{sessionStorage.setItem(storageKey,result.id);}catch{}}
+  try{const result=await apiClient.post('/api/admin/content-studio/ideas',{prompt,style,requestId:key.current}) as {id:string};setJob({id:result.id,stage:'QUEUED'});try{sessionStorage.setItem(storageKey,JSON.stringify({id:result.id,prompt,style}));}catch{}}
   catch(e){const failure=e as Error&{status?:number};if(failure.status)key.current='';const thai:Record<number,string>={400:'กรุณาใส่ไอเดีย 10–4,000 ตัวอักษรและเลือกรูปแบบเนื้อหา',401:'กรุณาเข้าสู่ระบบอีกครั้ง',403:'บัญชีนี้ไม่มีสิทธิ์ใช้งาน Content Studio',409:'คำขอนี้ถูกใช้แล้ว กรุณาลองส่งไอเดียใหม่',429:'ไอเดียก่อนหน้ายังอยู่ระหว่างดำเนินการ โปรดรอให้เสร็จก่อนส่งไอเดียใหม่',502:'ไม่สามารถเริ่มสร้างร่างได้ กรุณาลองอีกครั้ง',503:'ระบบสร้างร่างยังไม่พร้อมใช้งาน กรุณาลองใหม่ภายหลัง'};setError(en?failure.message:(thai[failure.status||0]||'การเชื่อมต่อขัดข้อง ลองกดสร้างร่างอีกครั้งเพื่อส่งคำขอเดิมต่อโดยไม่สร้างซ้ำ'));}finally{setSubmitting(false);}
  }
  return <section className="idea-generator" aria-labelledby="idea-title">
