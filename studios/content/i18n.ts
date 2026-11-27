@@ -1,5 +1,9 @@
 export type Language = "th" | "en";
 const english: Record<string, string> = {
+  "โทเค็นไม่มีกำหนดหมดอายุ": "Token has no scheduled expiry",
+  "โทเค็นหมดอายุ: ": "Token expires: ",
+  "เผยแพร่บน Facebook แล้ว": "Published to Facebook",
+  "เผยแพร่บน Instagram แล้ว": "Published to Instagram",
   "ไม่ทราบวันที่": "Date unavailable",
   "สถานะการเชื่อมต่อปัจจุบัน": "Current connection",
   "สถานะการเชื่อมต่อ Facebook ปัจจุบัน": "Current Facebook connection",

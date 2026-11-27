@@ -342,15 +342,15 @@ export default function ContentStudio() {
                   .padStart(2, "0")}
               </strong>
             </div>
-            <div>
-              <span>{t("เผยแพร่ครบสองช่องทาง")}</span>
+            {(["facebook", "instagram"] as const).map((platform) => <div key={platform}>
+              <span>{platform === "facebook" ? t("เผยแพร่บน Facebook แล้ว") : t("เผยแพร่บน Instagram แล้ว")}</span>
               <strong>
                 {drafts
-                  .filter((d) => d.status === "PUBLISHED")
+                  .filter((d) => d.publications?.some((p: Item) => p.channel === platform && p.status === "PUBLISHED"))
                   .length.toString()
                   .padStart(2, "0")}
               </strong>
-            </div>
+            </div>)}
             <div className="connection">
               <span>{t("สถานะการเชื่อมต่อปัจจุบัน")}</span>
               <b>
@@ -375,7 +375,7 @@ export default function ContentStudio() {
           </div>
           {!ready && !browserOnly && (
             <div className="notice">
-              {channel === "facebook" && status?.facebookConnection?.reason === "TOKEN_EXPIRED_OR_INVALID" ? (language === "en" ? "Facebook access has expired or is invalid. Ask an administrator to renew the Page connection, then refresh. Your drafts are safe." : "สิทธิ์เข้าถึง Facebook หมดอายุหรือไม่ถูกต้อง ให้ผู้ดูแลต่ออายุการเชื่อมต่อเพจแล้วรีเฟรช ร่างของคุณยังอยู่ครบ") :
+              {status?.[channel === "facebook" ? "facebookConnection" : "instagramConnection"]?.reason === "TOKEN_EXPIRED_OR_INVALID" ? (language === "en" ? `${channelName} access has expired or is invalid. Ask an administrator to renew the connection, then refresh. Your drafts are safe.` : `สิทธิ์เข้าถึง ${channelName} หมดอายุหรือไม่ถูกต้อง ให้ผู้ดูแลต่ออายุการเชื่อมต่อแล้วรีเฟรช ร่างของคุณยังอยู่ครบ`) :
               (!connected ? (language === "en" ? `Connect ${channelName} to publish to this platform.` : `เชื่อมต่อ ${channelName} เพื่อเผยแพร่บนแพลตฟอร์มนี้`) : (language === "en" ? "Publishing is currently disabled." : "ขณะนี้ปิดการเผยแพร่ไว้"))
               }
             </div>
@@ -556,14 +556,16 @@ export default function ContentStudio() {
                     </details>
                   )}
                   <div className="notice" role="status">
-                    <b>{t("สถานะการเชื่อมต่อ Facebook ปัจจุบัน") + ": "}</b>
-                    {status?.facebookConnection?.ok
+                    <b>{t("สถานะการเชื่อมต่อปัจจุบัน") + " · " + channelName + ": "}</b>
+                    {connected
                       ? t("เชื่อมต่อแล้ว")
                       : t("รอเชื่อมต่อบัญชี")}
-                    {status?.facebookConnection?.ok && (status?.postingEnabled
+                    {connected && (status?.postingEnabled
                       ? " · " + t("พร้อมให้ทีมตรวจทานและกดเผยแพร่")
                       : " · " + t("ขณะนี้ปิดการเผยแพร่ไว้"))}
                     {connectionCheckedAt && <div><small>{t("ตรวจสอบการเชื่อมต่อเมื่อ ") + displayTime(connectionCheckedAt)}</small></div>}
+                    {channel === "instagram" && status?.instagramConnection?.expiryStatus === "NO_SCHEDULED_EXPIRY" && <div><small>{t("โทเค็นไม่มีกำหนดหมดอายุ")}</small></div>}
+                    {channel === "instagram" && status?.instagramConnection?.expiresAt > 0 && <div><small>{t("โทเค็นหมดอายุ: ") + displayTime(new Date(status.instagramConnection.expiresAt * 1000).toISOString())}</small></div>}
                   </div>
                   <div className="post-results">
                     {selected.publications.map((p: Item) => (

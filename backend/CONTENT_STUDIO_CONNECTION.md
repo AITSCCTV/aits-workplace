@@ -2,6 +2,8 @@
 
 ## 27 November follow-up
 
+Instagram status now uses `checkStudioInstagram` for a read-only account identity check, with best-effort Meta token introspection. If introspection is unavailable, expiry is explicitly unknown rather than described as never-expiring. Saved credentials alone no longer imply readiness. Scoped deployment `1e7e19ec201a4d23bf2ccf872ec54f1b` preserved all 55 bindings. Initial production check returned `TOKEN_EXPIRED_OR_INVALID`; replacement requires the user's secret entry. The new Page token was separately verified against linked Instagram account `17841412447351722` (@aitscctv), with `instagram_content_publish` and no scheduled token expiry. No publishing test was performed. Integrate `backend/content-studio-instagram-health.mjs` in future shared backend rebuilds; `scripts/patch-content-studio-instagram-health.mjs` patches compatible current bundles.
+
 The live Page identity check again reports expired or invalid access. The current credential must be replaced before publishing can be considered operational. Do not infer publishing readiness from a previously successful connection check.
 
 Production Worker deployment `4eca31f4bd214b288b3ba59f21a5573f` adds a read-only connection check before freezing a draft or uploading Facebook media. Fixed, secret-free messages distinguish authentication, permission, rate-limit and invalid-input rejections. Unknown publication outcomes retain their existing duplicate-prevention protection. All 55 current bindings were preserved; no posts or draft records were changed.
