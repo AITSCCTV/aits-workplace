@@ -107,7 +107,10 @@ export default function ContentStudio() {
       setStatus(await b.json());
       setConnectionCheckedAt(new Date().toISOString());
       if (!keep) setSelected(null);
-      if (keep) setSelected(list.find((d: Item) => d.id === keep) || null);
+      if (keep) {
+        if (keep !== selected?.id) setChecked(false);
+        setSelected(list.find((d: Item) => d.id === keep) || null);
+      }
       return true;
     } catch (e) {
       setMessage(t((e as Error).message));
@@ -329,7 +332,7 @@ export default function ContentStudio() {
               {t("↻ รีเฟรช")}
             </button>
           </header>
-          <IdeaGenerator language={language} disabled={busy||dirty||researching} onReady={id=>{if(!dirty&&!busy){setFilter('ALL');void load(id);}}}/>
+          <IdeaGenerator language={language} disabled={busy||dirty||researching} onReady={id=>{if(!dirty&&!busy){setFilter('ALL');setQuery('');setChecked(false);void load(id);}}}/>
           <section className="editorial-calendar" aria-label={language === "en" ? "Weekly content plan" : "แผนคอนเทนต์ประจำสัปดาห์"}>
             <strong>{language === "en" ? "2 drafts per week · 08:00 Bangkok time" : "2 ร่างต่อสัปดาห์ · 08:00 เวลาไทย"}</strong>
             <p>{language === "en" ? "Monday: technical smart-home education · Thursday: marketing and buying guides" : "วันจันทร์: ความรู้ทางเทคนิคเกี่ยวกับสมาร์ทโฮม · วันพฤหัสบดี: การตลาดและคำแนะนำการเลือกซื้อ"}</p>
