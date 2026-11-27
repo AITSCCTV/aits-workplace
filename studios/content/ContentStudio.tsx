@@ -561,7 +561,9 @@ export default function ContentStudio() {
                             {t("เปิดโพสต์ ↗")}
                           </a>
                         )}
-                        {p.error && <small>{t(p.error)}</small>}
+                        {p.error && <small>{t(p.channel === "facebook" && p.status === "FAILED" && status?.facebookConnection?.reason === "TOKEN_EXPIRED_OR_INVALID"
+                          ? 'การเชื่อมต่อหมดอายุหรือถูกยกเลิก ให้ผู้ดูแลเชื่อมต่อบัญชีใหม่แล้วรีเฟรช'
+                          : p.error)}</small>}
                       </div>
                     ))}
                   </div>

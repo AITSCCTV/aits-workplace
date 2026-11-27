@@ -1,5 +1,11 @@
 export type Language = "th" | "en";
 const english: Record<string, string> = {
+  'การเชื่อมต่อหมดอายุหรือถูกยกเลิก ให้ผู้ดูแลเชื่อมต่อบัญชีใหม่แล้วรีเฟรช': 'Account access has expired or been revoked. Ask an administrator to reconnect the account, then refresh.',
+  'บัญชีไม่มีสิทธิ์เผยแพร่ ให้ผู้ดูแลตรวจสอบสิทธิ์เพจและแอปแล้วเชื่อมต่อใหม่': 'Publishing permission is missing. Ask an administrator to check Page and app permissions, then reconnect.',
+  'แพลตฟอร์มจำกัดจำนวนคำขอ กรุณารอสักครู่ก่อนลองใหม่': 'The platform is rate limiting requests. Wait before trying again.',
+  'แพลตฟอร์มไม่ยอมรับข้อมูลโพสต์ ให้ผู้ดูแลตรวจสอบรูปภาพและการตั้งค่าบัญชี': 'The platform rejected the post data. Ask an administrator to check the images and account settings.',
+  'แพลตฟอร์มปฏิเสธการเผยแพร่ ให้ผู้ดูแลตรวจสอบการเชื่อมต่อและสิทธิ์ก่อนลองใหม่': 'The platform rejected publishing. Ask an administrator to check the connection and permissions before retrying.',
+  'ไม่สามารถตรวจสอบการเชื่อมต่อได้ กรุณารีเฟรชแล้วลองใหม่': 'The connection check is unavailable. Refresh and try again.',
   "ระบบจะค้นคว้าความรู้ทางเทคนิควันจันทร์ และการตลาดวันพฤหัสบดี พร้อมข้อความและภาพให้ตรวจทาน": "Research prepares technical education on Mondays and marketing on Thursdays, with captions and images for review.",
   "AITSCCTV · วันจันทร์ความรู้ทางเทคนิค · วันพฤหัสบดีการตลาด · ตรวจทานก่อนเผยแพร่": "AITSCCTV · Monday education · Thursday marketing · Review before publishing",
   "GitHub Pages · บันทึกการแก้ไขในเบราว์เซอร์นี้เท่านั้น ยังไม่เชื่อมต่อ n8n และการเผยแพร่":
